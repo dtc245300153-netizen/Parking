@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+backend/.env
+backend/parking.db
+backend/backups/
+*.db-journal
+*.db
+database/backend/venv/
+database/backend/__pycache__/
+database/backend/**/__pycache__/
+database/backend/*.db
+backend.zip
+.vscode/*.log
