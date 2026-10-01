@@ -41,7 +41,7 @@ Base.metadata.create_all(bind=engine)
 # =========================================================
 
 app = FastAPI(
-    title="Parking AI Management System",
+    title="Parking Management System",
     description="Hệ thống quản lý bãi đỗ xe",
     version="1.0.0",
 )

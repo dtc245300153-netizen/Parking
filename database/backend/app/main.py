@@ -30,7 +30,7 @@ Base.metadata.create_all(bind=engine)
 # =========================
 
 app = FastAPI(
-    title="Parking AI Management System",
+    title="Parking Management System",
     description="Hệ thống quản lý bãi đỗ xe tích hợp AI",
     version="1.0.0"
 )
@@ -91,7 +91,7 @@ def parking_page(request: Request):
 @app.get("/")
 def root():
     return {
-        "message": "Parking AI API is running",
+        "message": "Parking API is running",
         "login": "/login",
         "parking": "/parking",
         "docs": "/docs"
