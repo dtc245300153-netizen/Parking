@@ -31,12 +31,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 )
 
 ROLE_ALIASES = {
-    "employee": "staff",
+    "ADMIN": "ADMIN",
+    "EMPLOYEE": "EMPLOYEE",
+    "STAFF": "EMPLOYEE",
+    "CUSTOMER": "CUSTOMER",
 }
 
 
 def canonical_role(role: str) -> str:
-    return ROLE_ALIASES.get((role or "").lower(), (role or "").lower())
+    normalized = (role or "").strip().upper()
+    return ROLE_ALIASES.get(normalized, normalized)
 
 
 # =========================
@@ -162,6 +166,18 @@ def get_current_user(
             detail="Người dùng không tồn tại",
         )
 
+    if str(user.status or "").strip().upper() != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tài khoản đã bị khóa hoặc ngừng hoạt động",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if canonical_role(user.role) not in {"ADMIN", "EMPLOYEE", "CUSTOMER"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vai trò người dùng không hợp lệ",
+        )
+
     return user
 
 
@@ -176,7 +192,7 @@ def require_admin(
     Chỉ cho phép tài khoản có role = admin.
     """
 
-    if canonical_role(current_user.role) != "admin":
+    if canonical_role(current_user.role) != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền quản trị"
@@ -192,7 +208,7 @@ def require_employee_or_admin(
     Cho phép cả admin và employee.
     """
 
-    if canonical_role(current_user.role) not in ["admin", "manager", "staff"]:
+    if canonical_role(current_user.role) not in {"ADMIN", "EMPLOYEE"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn không có quyền truy cập"
@@ -201,10 +217,22 @@ def require_employee_or_admin(
     return current_user
 
 
+def require_employee(
+    current_user: User = Depends(get_current_user)
+):
+    if canonical_role(current_user.role) != "EMPLOYEE":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ nhân viên mới được thực hiện nghiệp vụ này",
+        )
+
+    return current_user
+
+
 def require_manager_or_admin(
     current_user: User = Depends(get_current_user),
 ):
-    if canonical_role(current_user.role) not in ["admin", "manager"]:
+    if canonical_role(current_user.role) not in {"ADMIN", "MANAGER"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chỉ Admin hoặc Manager được thực hiện thao tác này",
@@ -229,9 +257,9 @@ def require_role(*allowed_roles: str):
     def role_checker(
         current_user: User = Depends(get_current_user)
     ):
-        if canonical_role(current_user.role) not in [
+        if canonical_role(current_user.role) not in {
             canonical_role(role) for role in allowed_roles
-        ]:
+        }:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Bạn không có quyền thực hiện chức năng này"

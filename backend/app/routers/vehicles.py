@@ -54,7 +54,6 @@ def create_vehicle(
             detail="Loại xe không được để trống"
         )
 
-    # Kiểm tra trùng biển số
     existing = (
         db.query(Vehicle)
         .filter(Vehicle.license_plate == license_plate)
@@ -67,10 +66,37 @@ def create_vehicle(
             detail="Biển số đã tồn tại"
         )
 
+    from ..models import Customer
+    customer = db.query(Customer).filter(Customer.full_name.ilike(owner_name)).first() if owner_name else None
+    if customer is None and owner_name:
+        customer = Customer(
+            customer_code=f"CUST-{__import__('datetime').datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            full_name=owner_name,
+            phone="",
+            email="",
+            address="",
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+    if customer is None:
+        customer = db.query(Customer).first()
+    if customer is None:
+        customer = Customer(
+            customer_code=f"CUST-{__import__('datetime').datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            full_name="Khách vãng lai",
+            phone="",
+            email="",
+            address="",
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+
     vehicle = Vehicle(
+        customer_id=customer.id,
         license_plate=license_plate,
         vehicle_type=vehicle_type,
-        owner_name=owner_name
     )
 
     db.add(vehicle)
@@ -120,7 +146,6 @@ def update_vehicle(
             detail="Loại xe không được để trống"
         )
 
-    # Không cho trùng biển số với xe khác
     duplicate = (
         db.query(Vehicle)
         .filter(
@@ -136,9 +161,36 @@ def update_vehicle(
             detail="Biển số đã tồn tại"
         )
 
+    from ..models import Customer
+    customer = db.query(Customer).filter(Customer.full_name.ilike(owner_name)).first() if owner_name else None
+    if customer is None and owner_name:
+        customer = Customer(
+            customer_code=f"CUST-{__import__('datetime').datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            full_name=owner_name,
+            phone="",
+            email="",
+            address="",
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+    if customer is None:
+        customer = vehicle.customer or db.query(Customer).first()
+    if customer is None:
+        customer = Customer(
+            customer_code=f"CUST-{__import__('datetime').datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            full_name="Khách vãng lai",
+            phone="",
+            email="",
+            address="",
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+
     vehicle.license_plate = license_plate
     vehicle.vehicle_type = vehicle_type
-    vehicle.owner_name = owner_name
+    vehicle.customer_id = customer.id
 
     db.commit()
     db.refresh(vehicle)

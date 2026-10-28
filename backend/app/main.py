@@ -1,32 +1,53 @@
 from datetime import datetime, timedelta
-from math import ceil
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from .models import (
     User,
+    Employee,
     Area,
+    Customer,
+    ParkingArea,
     ParkingSlot,
     Vehicle,
     ParkingTicket,
+    Payment,
     PriceRule,
+    Pricing,
     ActivityLog,
     Notification,
 )
-from .security import get_current_user, require_admin, require_manager_or_admin
+from .security import (
+    canonical_role,
+    get_current_user,
+    require_admin,
+    require_employee,
+    require_employee_or_admin,
+)
 from .routers import auth
+from .routers.ai import router as ai_router
+from .routers.customers import router as customers_router
+from .routers.employees import router as employees_router
+from .routers.parking import router as parking_router
+from .routers.reports import router as reports_router
+from .routers.users import router as users_router
+from .routers.tickets import router as tickets_router
 from .services.ai import (
     NotConfiguredAiProvider,
     answer_question,
     get_capabilities,
 )
 from .services.qr import ticket_qr_payload
+from .time_utils import VIETNAM_TIMEZONE, to_vietnam_datetime
 
 
 # =========================================================
@@ -34,6 +55,22 @@ from .services.qr import ticket_qr_payload
 # =========================================================
 
 Base.metadata.create_all(bind=engine)
+if "user_id" not in {
+    column["name"] for column in inspect(engine).get_columns("customers")
+}:
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE customers "
+                "ADD COLUMN user_id INTEGER REFERENCES users(id)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "ix_customers_user_id ON customers (user_id)"
+            )
+        )
 
 
 # =========================================================
@@ -59,6 +96,13 @@ templates = Jinja2Templates(directory="templates")
 # =========================================================
 
 app.include_router(auth.router)
+app.include_router(customers_router)
+app.include_router(employees_router)
+app.include_router(users_router)
+app.include_router(parking_router)
+app.include_router(tickets_router)
+app.include_router(reports_router)
+app.include_router(ai_router)
 
 
 # =========================================================
@@ -68,11 +112,15 @@ app.include_router(auth.router)
 class AreaCreate(BaseModel):
     name: str
     description: Optional[str] = ""
+    vehicle_type: str = "MIXED"
+    capacity: int = 0
 
 
 class AreaUpdate(BaseModel):
     name: str
     description: Optional[str] = ""
+    vehicle_type: str = "MIXED"
+    capacity: int = 0
 
 
 class SlotCreate(BaseModel):
@@ -87,29 +135,44 @@ class SlotUpdate(BaseModel):
 
 
 class VehicleCreate(BaseModel):
+    customer_id: Optional[int] = None
     license_plate: str
     vehicle_type: str
     owner_name: Optional[str] = ""
 
 
 class VehicleUpdate(BaseModel):
+    customer_id: Optional[int] = None
     license_plate: str
     vehicle_type: str
     owner_name: Optional[str] = ""
 
 
+class CustomerVehicleRegistration(BaseModel):
+    license_plate: str
+    vehicle_type: str
+    brand: Optional[str] = None
+    color: Optional[str] = None
+
+
 class PriceCreate(BaseModel):
     vehicle_type: str
-    first_hour_price: float
-    next_hour_price: float
-    monthly_price: float
+    from_minute: int
+    to_minute: int
+    price: float
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+    status: str = "ACTIVE"
 
 
 class PriceUpdate(BaseModel):
     vehicle_type: str
-    first_hour_price: float
-    next_hour_price: float
-    monthly_price: float
+    from_minute: int
+    to_minute: int
+    price: float
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
+    status: str = "ACTIVE"
 
 
 class TicketEntry(BaseModel):
@@ -140,16 +203,24 @@ def check_user(current_user):
 
 
 VEHICLE_TYPE_ALIASES = {
-    "car": "Ô tô",
-    "motorbike": "Xe máy",
-    "truck": "Xe tải",
-    "bus": "Xe buýt",
+    "car": "CAR",
+    "ô tô": "CAR",
+    "oto": "CAR",
+    "motorbike": "MOTORBIKE",
+    "motorcycle": "MOTORBIKE",
+    "xe máy": "MOTORBIKE",
+    "truck": "TRUCK",
+    "xe tải": "TRUCK",
+    "bus": "BUS",
+    "xe buýt": "BUS",
+    "ev": "EV",
+    "xe điện": "EV",
 }
 
 
 def canonical_vehicle_type(value: str) -> str:
     normalized = (value or "").strip()
-    return VEHICLE_TYPE_ALIASES.get(normalized.lower(), normalized)
+    return VEHICLE_TYPE_ALIASES.get(normalized.lower(), normalized.upper())
 
 
 def log_activity(
@@ -207,11 +278,68 @@ async def read_body(request: Request):
     return dict(form)
 
 
+def normalize_slot_status(value):
+    if value is None:
+        return "available"
+
+    normalized = str(value).strip().lower()
+    mapping = {
+        "empty": "available",
+        "available": "available",
+        "occupied": "occupied",
+        "reserved": "reserved",
+        "inactive": "inactive",
+        "maintenance": "inactive",
+        "unavailable": "inactive",
+        "vacant": "available",
+    }
+    return mapping.get(normalized, normalized)
+
+
+def normalize_slot_db_status(value):
+    if value is None:
+        return "EMPTY"
+
+    normalized = str(value).strip().upper()
+    mapping = {
+        "AVAILABLE": "EMPTY",
+        "EMPTY": "EMPTY",
+        "VACANT": "EMPTY",
+        "OCCUPIED": "OCCUPIED",
+        "RESERVED": "RESERVED",
+        "INACTIVE": "MAINTENANCE",
+        "MAINTENANCE": "MAINTENANCE",
+        "UNAVAILABLE": "MAINTENANCE",
+    }
+    return mapping.get(normalized, normalized)
+
+
+def normalize_ticket_status(value):
+    if value is None:
+        return "PARKING"
+
+    normalized = str(value).strip().upper()
+    mapping = {
+        "ACTIVE": "PARKING",
+        "PARKING": "PARKING",
+        "PAID": "PAID",
+        "COMPLETED": "PAID",
+        "FINISHED": "PAID",
+        "CANCELLED": "CANCELLED",
+        "CANCELED": "CANCELLED",
+    }
+    return mapping.get(normalized, normalized)
+
+
 def area_to_dict(area):
     return {
         "id": area.id,
-        "name": area.name,
-        "description": area.description or "",
+        "area_code": area.area_code,
+        "name": getattr(area, "area_name", getattr(area, "name", "")) or "",
+        "vehicle_type": area.vehicle_type,
+        "capacity": area.capacity,
+        "status": area.status,
+        "description": getattr(area, "description", "") or "",
     }
 
 
@@ -220,31 +348,32 @@ def slot_to_dict(slot):
         (
             ticket
             for ticket in slot.tickets
-            if ticket.status == "parking"
+            if str(getattr(ticket, "status", "")).lower() in {"parking", "parked", "active"}
         ),
         None,
     )
 
+    entry_time = getattr(active_ticket, "check_in", None) or getattr(active_ticket, "entry_time", None)
     return {
         "id": slot.id,
         "slot_code": slot.slot_code,
-        "status": slot.status,
+        "status": normalize_slot_status(slot.status),
         "area_id": slot.area_id,
-        "area_name": slot.area.name if slot.area else "",
-        "vehicle_id": active_ticket.vehicle_id if active_ticket else None,
+        "area_name": slot.area.area_name if slot.area else "",
+        "vehicle_id": getattr(active_ticket, "vehicle_id", None),
         "license_plate": (
             active_ticket.vehicle.license_plate
-            if active_ticket and active_ticket.vehicle
+            if active_ticket and getattr(active_ticket, "vehicle", None)
             else ""
         ),
         "vehicle_type": (
             active_ticket.vehicle.vehicle_type
-            if active_ticket and active_ticket.vehicle
+            if active_ticket and getattr(active_ticket, "vehicle", None)
             else ""
         ),
         "entry_time": (
-            active_ticket.entry_time.strftime("%Y-%m-%d %H:%M:%S")
-            if active_ticket and active_ticket.entry_time
+            entry_time.strftime("%Y-%m-%d %H:%M:%S")
+            if entry_time
             else ""
         ),
     }
@@ -255,47 +384,146 @@ def vehicle_to_dict(vehicle):
         (
             ticket
             for ticket in vehicle.tickets
-            if ticket.status == "parking"
+            if str(getattr(ticket, "status", "")).lower() in {"parking", "parked", "active"}
         ),
         None,
     )
+    owner_name = getattr(vehicle, "owner_name", "") or ""
+    customer_name = getattr(vehicle.customer, "full_name", None) or owner_name
 
+    entry_time = getattr(active_ticket, "check_in", None) or getattr(active_ticket, "entry_time", None)
     return {
         "id": vehicle.id,
+        "customer_id": getattr(vehicle, "customer_id", None),
         "license_plate": vehicle.license_plate,
-        "vehicle_type": vehicle.vehicle_type,
-        "owner_name": vehicle.owner_name or "",
+        "vehicle_type": canonical_vehicle_type(vehicle.vehicle_type),
+        "owner_name": owner_name,
+        "customer_name": customer_name,
         "status": "parking" if active_ticket else "outside",
         "slot_code": (
             active_ticket.slot.slot_code
-            if active_ticket and active_ticket.slot
+            if active_ticket and getattr(active_ticket, "slot", None)
             else ""
         ),
         "entry_time": (
-            active_ticket.entry_time.strftime("%Y-%m-%d %H:%M:%S")
-            if active_ticket and active_ticket.entry_time
+            entry_time.strftime("%Y-%m-%d %H:%M:%S")
+            if entry_time
             else ""
         ),
     }
+
+
+def get_or_create_customer_for_vehicle(
+    db: Session,
+    owner_name: Optional[str] = None,
+    customer_id: Optional[int] = None,
+) -> Customer:
+    if customer_id is not None:
+        customer = db.query(Customer).filter(Customer.id == customer_id).first()
+        if customer is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Khách hàng được chọn không tồn tại",
+            )
+        return customer
+
+    name = (owner_name or "").strip()
+    customer = None
+    if name:
+        customer = db.query(Customer).filter(Customer.full_name.ilike(name)).first()
+    if customer is None:
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail="Phải chọn khách hàng cho phương tiện",
+            )
+        customer = Customer(
+            customer_code=f"CUST-{uuid4().hex[:10].upper()}",
+            full_name=name,
+            phone="",
+            email="",
+            address="",
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(customer)
+    elif name and customer.full_name != name:
+        customer.full_name = name
+        db.commit()
+    return customer
 
 
 def price_to_dict(price):
     return {
         "id": price.id,
-        "vehicle_type": price.vehicle_type,
-        "first_hour_price": price.first_hour_price,
-        "next_hour_price": price.next_hour_price,
-        "monthly_price": price.monthly_price,
+        "vehicle_type": canonical_vehicle_type(price.vehicle_type),
+        "from_minute": price.from_minute,
+        "to_minute": price.to_minute,
+        "price": price.price,
+        "effective_from": price.effective_from.isoformat() if price.effective_from else None,
+        "effective_to": price.effective_to.isoformat() if price.effective_to else None,
+        "status": price.status,
     }
 
 
+def calculate_pricing_fee(
+    db: Session,
+    vehicle_type: str,
+    check_in: datetime,
+    check_out: datetime,
+) -> float:
+    now = datetime.utcnow()
+    normalized_type = canonical_vehicle_type(vehicle_type)
+    rules = (
+        db.query(Pricing)
+        .filter(
+            Pricing.vehicle_type == normalized_type,
+            Pricing.status == "ACTIVE",
+            Pricing.effective_from <= now,
+        )
+        .order_by(Pricing.from_minute.desc())
+        .all()
+    )
+    rules = [
+        rule for rule in rules
+        if rule.effective_to is None or rule.effective_to >= now
+    ]
+    if not rules:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Chưa có bảng giá đang áp dụng cho loại xe {normalized_type}",
+        )
+
+    elapsed_minutes = max(1, int((check_out - check_in).total_seconds() // 60))
+    selected_rule = next(
+        (
+            rule for rule in rules
+            if rule.from_minute <= elapsed_minutes
+            and (rule.to_minute == 0 or elapsed_minutes <= rule.to_minute)
+        ),
+        None,
+    )
+    if selected_rule is None:
+        final_rule = max(rules, key=lambda rule: rule.to_minute)
+        if final_rule.to_minute != 0 and elapsed_minutes > final_rule.to_minute:
+            selected_rule = final_rule
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Chưa có khung giá cho thời lượng gửi xe {elapsed_minutes} phút",
+            )
+    return float(selected_rule.price)
+
+
 def ticket_to_dict(ticket):
+    entry_dt = getattr(ticket, "check_in", None) or getattr(ticket, "entry_time", None)
+    exit_dt = getattr(ticket, "check_out", None) or getattr(ticket, "exit_time", None)
     duration_minutes = None
-    if ticket.entry_time:
-        end_time = ticket.exit_time or datetime.now()
+    if entry_dt:
+        end_time = exit_dt or datetime.now()
         duration_minutes = max(
             0,
-            int((end_time - ticket.entry_time).total_seconds() // 60),
+            int((end_time - entry_dt).total_seconds() // 60),
         )
 
     return {
@@ -303,7 +531,6 @@ def ticket_to_dict(ticket):
         "ticket_code": ticket.ticket_code,
         "vehicle_id": ticket.vehicle_id,
         "slot_id": ticket.slot_id,
-
         "vehicle": (
             ticket.vehicle.license_plate
             if ticket.vehicle
@@ -314,27 +541,23 @@ def ticket_to_dict(ticket):
             if ticket.vehicle
             else ""
         ),
-
         "slot": (
             ticket.slot.slot_code
             if ticket.slot
             else ""
         ),
-
         "entry_time": (
-            ticket.entry_time.strftime("%Y-%m-%d %H:%M:%S")
-            if ticket.entry_time
+            entry_dt.strftime("%Y-%m-%d %H:%M:%S")
+            if entry_dt
             else ""
         ),
-
         "exit_time": (
-            ticket.exit_time.strftime("%Y-%m-%d %H:%M:%S")
-            if ticket.exit_time
+            exit_dt.strftime("%Y-%m-%d %H:%M:%S")
+            if exit_dt
             else ""
         ),
-
-        "fee": ticket.fee or 0,
-        "status": ticket.status,
+        "fee": getattr(ticket, "fee", None) or getattr(ticket, "amount", None) or 0,
+        "status": normalize_ticket_status(ticket.status),
         "duration_minutes": duration_minutes,
     }
 
@@ -409,6 +632,8 @@ def ai_assistant(
     current_user: User = Depends(get_current_user),
 ):
     check_user(current_user)
+    if canonical_role(current_user.role) not in {"CUSTOMER", "ADMIN"}:
+        raise HTTPException(status_code=403, detail="Chỉ khách hàng mới được hỏi AI")
     try:
         return answer_question(db, data.question)
     except ValueError as error:
@@ -421,7 +646,7 @@ def ai_assistant(
 def get_audit_logs(
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_manager_or_admin),
+    current_user: User = Depends(require_admin),
 ):
     limit = min(max(limit, 1), 500)
     logs = db.query(ActivityLog).order_by(
@@ -520,9 +745,19 @@ async def create_area(
 
     body = await read_body(request)
 
+    try:
+        capacity = int(body.get("capacity", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=400,
+            detail="Sức chứa phải là số nguyên không âm",
+        )
+
     data = AreaCreate(
         name=str(body.get("name", "")),
         description=str(body.get("description", "")),
+        vehicle_type=str(body.get("vehicle_type", "MIXED")),
+        capacity=capacity,
     )
 
     name = data.name.strip()
@@ -533,8 +768,17 @@ async def create_area(
             detail="Tên khu vực không được để trống",
         )
 
+    if data.capacity < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Sức chứa không được âm",
+        )
+
     area = Area(
-        name=name,
+        area_code=f"AREA-{uuid4().hex[:8].upper()}",
+        area_name=name,
+        vehicle_type=data.vehicle_type.strip().upper() or "MIXED",
+        capacity=data.capacity,
         description=data.description or "",
     )
 
@@ -568,9 +812,19 @@ async def update_area(
 
     body = await read_body(request)
 
+    try:
+        capacity = int(body.get("capacity", area.capacity))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=400,
+            detail="Sức chứa phải là số nguyên không âm",
+        )
+
     data = AreaUpdate(
         name=str(body.get("name", "")),
         description=str(body.get("description", "")),
+        vehicle_type=str(body.get("vehicle_type", area.vehicle_type)),
+        capacity=capacity,
     )
 
     name = data.name.strip()
@@ -581,7 +835,15 @@ async def update_area(
             detail="Tên khu vực không được để trống",
         )
 
-    area.name = name
+    if data.capacity < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Sức chứa không được âm",
+        )
+
+    area.area_name = name
+    area.vehicle_type = data.vehicle_type.strip().upper() or area.vehicle_type
+    area.capacity = data.capacity
     area.description = data.description or ""
 
     db.commit()
@@ -610,6 +872,14 @@ def delete_area(
             detail="Không tìm thấy khu vực",
         )
 
+    if any(slot.tickets for slot in area.slots):
+        raise HTTPException(
+            status_code=400,
+            detail="Không thể xóa khu vực đã có lịch sử vé xe",
+        )
+
+    for slot in area.slots:
+        db.delete(slot)
     db.delete(area)
     db.commit()
 
@@ -696,11 +966,12 @@ async def create_slot(
             detail="Mã vị trí đã tồn tại",
         )
 
-    if data.status not in [
-        "available",
-        "occupied",
-        "reserved",
-        "inactive",
+    normalized_status = normalize_slot_db_status(data.status)
+    if normalized_status not in [
+        "EMPTY",
+        "OCCUPIED",
+        "RESERVED",
+        "MAINTENANCE",
     ]:
         raise HTTPException(
             status_code=400,
@@ -710,7 +981,7 @@ async def create_slot(
     slot = ParkingSlot(
         slot_code=code,
         area_id=data.area_id,
-        status=data.status,
+        status=normalized_status,
     )
 
     db.add(slot)
@@ -778,11 +1049,12 @@ async def update_slot(
             detail="Mã vị trí đã tồn tại",
         )
 
-    if data.status not in [
-        "available",
-        "occupied",
-        "reserved",
-        "inactive",
+    normalized_status = normalize_slot_db_status(data.status)
+    if normalized_status not in [
+        "EMPTY",
+        "OCCUPIED",
+        "RESERVED",
+        "MAINTENANCE",
     ]:
         raise HTTPException(
             status_code=400,
@@ -790,7 +1062,7 @@ async def update_slot(
         )
 
     slot.slot_code = code
-    slot.status = data.status
+    slot.status = normalized_status
 
     db.commit()
     db.refresh(slot)
@@ -818,19 +1090,10 @@ def delete_slot(
             detail="Không tìm thấy vị trí",
         )
 
-    active_ticket = (
-        db.query(ParkingTicket)
-        .filter(
-            ParkingTicket.slot_id == slot_id,
-            ParkingTicket.status == "parking",
-        )
-        .first()
-    )
-
-    if active_ticket:
+    if slot.tickets:
         raise HTTPException(
             status_code=400,
-            detail="Vị trí đang có xe, không thể xóa",
+            detail="Không thể xóa vị trí đã được sử dụng trong lịch sử vé",
         )
 
     db.delete(slot)
@@ -852,26 +1115,87 @@ def get_vehicles(
 ):
     check_user(current_user)
 
-    vehicles = (
-        db.query(Vehicle)
-        .order_by(Vehicle.id.desc())
-        .all()
-    )
+    vehicle_query = db.query(Vehicle)
+    if canonical_role(current_user.role) == "CUSTOMER":
+        customer = (
+            db.query(Customer)
+            .filter(Customer.user_id == current_user.id)
+            .first()
+        )
+        if customer is None:
+            return []
+        vehicle_query = vehicle_query.filter(Vehicle.customer_id == customer.id)
+    elif canonical_role(current_user.role) not in {"ADMIN", "EMPLOYEE"}:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem phương tiện")
 
-    return [vehicle_to_dict(v) for v in vehicles]
+    return [
+        vehicle_to_dict(vehicle)
+        for vehicle in vehicle_query.order_by(Vehicle.id.desc()).all()
+    ]
+
+
+@app.post("/api/vehicles/register", status_code=201)
+def register_customer_vehicle(
+    payload: CustomerVehicleRegistration,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if canonical_role(current_user.role) != "CUSTOMER":
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ khách hàng mới được tự đăng ký phương tiện",
+        )
+
+    customer = (
+        db.query(Customer)
+        .filter(Customer.user_id == current_user.id)
+        .first()
+    )
+    if customer is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Tài khoản chưa có hồ sơ khách hàng",
+        )
+
+    plate = payload.license_plate.strip().upper()
+    vehicle_type = canonical_vehicle_type(payload.vehicle_type)
+    if not plate:
+        raise HTTPException(status_code=400, detail="Biển số không được để trống")
+    if db.query(Vehicle).filter(Vehicle.license_plate == plate).first():
+        raise HTTPException(status_code=409, detail="Biển số xe đã được đăng ký")
+
+    vehicle = Vehicle(
+        customer_id=customer.id,
+        license_plate=plate,
+        vehicle_type=vehicle_type,
+        brand=payload.brand.strip() if payload.brand else None,
+        color=payload.color.strip() if payload.color else None,
+    )
+    db.add(vehicle)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Biển số xe đã được đăng ký",
+        )
+    db.refresh(vehicle)
+    return vehicle_to_dict(vehicle)
 
 
 @app.post("/api/vehicles/")
 async def create_vehicle(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_employee_or_admin),
 ):
     check_user(current_user)
 
     body = await read_body(request)
 
     data = VehicleCreate(
+        customer_id=(body.get("customer_id") or body.get("customerId") or None),
         license_plate=str(body.get("license_plate", "")),
         vehicle_type=str(body.get("vehicle_type", "")),
         owner_name=str(body.get("owner_name", "")),
@@ -897,10 +1221,11 @@ async def create_vehicle(
             detail="Biển số xe đã tồn tại",
         )
 
+    customer = get_or_create_customer_for_vehicle(db, data.owner_name, data.customer_id)
     vehicle = Vehicle(
+        customer_id=customer.id,
         license_plate=plate,
         vehicle_type=canonical_vehicle_type(data.vehicle_type),
-        owner_name=data.owner_name or "",
     )
 
     db.add(vehicle)
@@ -934,6 +1259,7 @@ async def update_vehicle(
     body = await read_body(request)
 
     data = VehicleUpdate(
+        customer_id=(body.get("customer_id") or body.get("customerId") or None),
         license_plate=str(body.get("license_plate", "")),
         vehicle_type=str(body.get("vehicle_type", "")),
         owner_name=str(body.get("owner_name", "")),
@@ -956,9 +1282,10 @@ async def update_vehicle(
             detail="Biển số xe đã tồn tại",
         )
 
+    customer = get_or_create_customer_for_vehicle(db, data.owner_name, data.customer_id)
     vehicle.license_plate = plate
     vehicle.vehicle_type = canonical_vehicle_type(data.vehicle_type)
-    vehicle.owner_name = data.owner_name or ""
+    vehicle.customer_id = customer.id
 
     db.commit()
     db.refresh(vehicle)
@@ -986,19 +1313,10 @@ def delete_vehicle(
             detail="Không tìm thấy phương tiện",
         )
 
-    active_ticket = (
-        db.query(ParkingTicket)
-        .filter(
-            ParkingTicket.vehicle_id == vehicle_id,
-            ParkingTicket.status == "parking",
-        )
-        .first()
-    )
-
-    if active_ticket:
+    if vehicle.tickets:
         raise HTTPException(
             status_code=400,
-            detail="Xe đang ở trong bãi, không thể xóa",
+            detail="Không thể xóa phương tiện đã có lịch sử vé xe",
         )
 
     db.delete(vehicle)
@@ -1041,18 +1359,21 @@ async def create_price(
 
     try:
         data = PriceCreate(
-            vehicle_type=str(body.get("vehicle_type", "")),
-            first_hour_price=float(body.get("first_hour_price", 0)),
-            next_hour_price=float(body.get("next_hour_price", 0)),
-            monthly_price=float(body.get("monthly_price", 0)),
+            vehicle_type=canonical_vehicle_type(str(body.get("vehicle_type", ""))),
+            from_minute=int(body.get("from_minute", 0)),
+            to_minute=int(body.get("to_minute", 0)),
+            price=float(body.get("price", 0)),
+            effective_from=body.get("effective_from") or datetime.utcnow(),
+            effective_to=body.get("effective_to") or None,
+            status=str(body.get("status", "ACTIVE")).upper(),
         )
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, ValidationError):
         raise HTTPException(
             status_code=400,
             detail="Dữ liệu bảng giá không hợp lệ",
         )
 
-    vehicle_type = data.vehicle_type.strip()
+    vehicle_type = data.vehicle_type.strip().upper()
 
     if not vehicle_type:
         raise HTTPException(
@@ -1060,23 +1381,47 @@ async def create_price(
             detail="Loại xe không được để trống",
         )
 
+    if data.from_minute < 0 or data.to_minute < 0 or data.price < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Thời gian và đơn giá không được âm",
+        )
+
+    if data.to_minute != 0 and data.to_minute < data.from_minute:
+        raise HTTPException(
+            status_code=400,
+            detail="Mốc phút kết thúc phải lớn hơn hoặc bằng mốc bắt đầu",
+        )
+
+    if data.status not in {"ACTIVE", "INACTIVE"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Trạng thái bảng giá không hợp lệ",
+        )
+
     exists = (
         db.query(PriceRule)
         .filter(PriceRule.vehicle_type == vehicle_type)
+        .filter(PriceRule.from_minute == data.from_minute)
+        .filter(PriceRule.to_minute == data.to_minute)
+        .filter(PriceRule.status == "ACTIVE")
         .first()
     )
 
     if exists:
         raise HTTPException(
             status_code=400,
-            detail="Loại xe đã có bảng giá",
+            detail="Khung thời gian này đã có bảng giá đang hoạt động",
         )
 
     price = PriceRule(
         vehicle_type=vehicle_type,
-        first_hour_price=data.first_hour_price,
-        next_hour_price=data.next_hour_price,
-        monthly_price=data.monthly_price,
+        from_minute=data.from_minute,
+        to_minute=data.to_minute,
+        price=data.price,
+        effective_from=data.effective_from or datetime.utcnow(),
+        effective_to=data.effective_to,
+        status=data.status,
     )
 
     db.add(price)
@@ -1111,24 +1456,30 @@ async def update_price(
 
     try:
         data = PriceUpdate(
-            vehicle_type=str(body.get("vehicle_type", "")),
-            first_hour_price=float(body.get("first_hour_price", 0)),
-            next_hour_price=float(body.get("next_hour_price", 0)),
-            monthly_price=float(body.get("monthly_price", 0)),
+            vehicle_type=canonical_vehicle_type(str(body.get("vehicle_type", ""))),
+            from_minute=int(body.get("from_minute", 0)),
+            to_minute=int(body.get("to_minute", 0)),
+            price=float(body.get("price", 0)),
+            effective_from=body.get("effective_from") or price.effective_from,
+            effective_to=body.get("effective_to") or None,
+            status=str(body.get("status", price.status)).upper(),
         )
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, ValidationError):
         raise HTTPException(
             status_code=400,
             detail="Dữ liệu bảng giá không hợp lệ",
         )
 
-    vehicle_type = data.vehicle_type.strip()
+    vehicle_type = data.vehicle_type.strip().upper()
 
     exists = (
         db.query(PriceRule)
         .filter(
             PriceRule.vehicle_type == vehicle_type,
             PriceRule.id != price_id,
+            PriceRule.from_minute == data.from_minute,
+            PriceRule.to_minute == data.to_minute,
+            PriceRule.status == "ACTIVE",
         )
         .first()
     )
@@ -1139,10 +1490,31 @@ async def update_price(
             detail="Loại xe đã có bảng giá",
         )
 
+    if data.from_minute < 0 or data.to_minute < 0 or data.price < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Thời gian và đơn giá không được âm",
+        )
+
+    if data.to_minute != 0 and data.to_minute < data.from_minute:
+        raise HTTPException(
+            status_code=400,
+            detail="Mốc phút kết thúc phải lớn hơn hoặc bằng mốc bắt đầu",
+        )
+
+    if data.status not in {"ACTIVE", "INACTIVE"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Trạng thái bảng giá không hợp lệ",
+        )
+
     price.vehicle_type = vehicle_type
-    price.first_hour_price = data.first_hour_price
-    price.next_hour_price = data.next_hour_price
-    price.monthly_price = data.monthly_price
+    price.from_minute = data.from_minute
+    price.to_minute = data.to_minute
+    price.price = data.price
+    price.effective_from = data.effective_from or datetime.utcnow()
+    price.effective_to = data.effective_to
+    price.status = data.status
 
     db.commit()
     db.refresh(price)
@@ -1189,11 +1561,24 @@ def get_tickets(
 ):
     check_user(current_user)
 
-    tickets = (
-        db.query(ParkingTicket)
-        .order_by(ParkingTicket.id.desc())
-        .all()
-    )
+    ticket_query = db.query(ParkingTicket)
+    if canonical_role(current_user.role) == "CUSTOMER":
+        customer = (
+            db.query(Customer)
+            .filter(Customer.user_id == current_user.id)
+            .first()
+        )
+        if customer is None:
+            return []
+        ticket_query = (
+            ticket_query
+            .join(Vehicle, Vehicle.id == ParkingTicket.vehicle_id)
+            .filter(Vehicle.customer_id == customer.id)
+        )
+    elif canonical_role(current_user.role) not in {"ADMIN", "EMPLOYEE"}:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem vé xe")
+
+    tickets = ticket_query.order_by(ParkingTicket.id.desc()).all()
 
     return [ticket_to_dict(t) for t in tickets]
 
@@ -1210,6 +1595,16 @@ def get_ticket_qr_payload(
     ).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Không tìm thấy vé")
+    if canonical_role(current_user.role) == "CUSTOMER":
+        customer = (
+            db.query(Customer)
+            .filter(Customer.user_id == current_user.id)
+            .first()
+        )
+        if customer is None or ticket.vehicle.customer_id != customer.id:
+            raise HTTPException(status_code=404, detail="Không tìm thấy vé")
+    elif canonical_role(current_user.role) not in {"ADMIN", "EMPLOYEE"}:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem vé xe")
 
     return {
         "format": "parking-ticket-v1",
@@ -1223,7 +1618,7 @@ def vehicle_entry(
     data: TicketEntry,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_employee_or_admin),
 ):
     check_user(current_user)
 
@@ -1251,19 +1646,21 @@ def vehicle_entry(
             detail="Không tìm thấy vị trí",
         )
 
-    if slot.status != "available":
+    if normalize_slot_db_status(slot.status) != "EMPTY":
         raise HTTPException(
             status_code=400,
             detail="Vị trí này không còn trống",
         )
 
-    active_vehicle_ticket = (
-        db.query(ParkingTicket)
-        .filter(
-            ParkingTicket.vehicle_id == vehicle.id,
-            ParkingTicket.status == "parking",
-        )
-        .first()
+    active_vehicle_ticket = next(
+        (
+            ticket
+            for ticket in db.query(ParkingTicket)
+            .filter(ParkingTicket.vehicle_id == vehicle.id)
+            .all()
+            if normalize_ticket_status(ticket.status) == "PARKING"
+        ),
+        None,
     )
 
     if active_vehicle_ticket:
@@ -1272,24 +1669,34 @@ def vehicle_entry(
             detail="Phương tiện này đang ở trong bãi",
         )
 
-    ticket_code = (
-        "VE"
-        + datetime.now().strftime("%Y%m%d%H%M%S")
-        + str(vehicle.id)
+    employee = (
+        db.query(Employee)
+        .filter(
+            Employee.user_id == current_user.id,
+            Employee.status == "ACTIVE",
+        )
+        .first()
     )
+    if not employee:
+        raise HTTPException(
+            status_code=400,
+            detail="Tài khoản hiện tại chưa được liên kết với hồ sơ nhân viên",
+        )
 
     ticket = ParkingTicket(
-        ticket_code=ticket_code,
+        ticket_code=f"TKT-{uuid4().hex[:12].upper()}",
         vehicle_id=vehicle.id,
         slot_id=slot.id,
-        entry_time=datetime.now(),
-        status="parking",
-        fee=0,
+        employee_id=employee.id,
+        check_in=datetime.utcnow(),
+        amount=0,
+        status="PARKING",
     )
 
-    slot.status = "occupied"
+    slot.status = "OCCUPIED"
 
     db.add(ticket)
+    db.flush()
     log_activity(
         db,
         current_user,
@@ -1316,7 +1723,7 @@ def vehicle_exit(
     data: TicketExit,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_employee_or_admin),
 ):
     check_user(current_user)
 
@@ -1332,43 +1739,58 @@ def vehicle_exit(
             detail="Không tìm thấy vé",
         )
 
-    if ticket.status != "parking":
+    now = datetime.utcnow()
+
+    if normalize_ticket_status(ticket.status) != "PARKING":
         raise HTTPException(
             status_code=400,
             detail="Vé này đã được xe ra",
         )
 
-    now = datetime.now()
-
-    hours = ceil(
-        max(
-            1,
-            (now - ticket.entry_time).total_seconds() / 3600,
+    employee = (
+        db.query(Employee)
+        .filter(
+            Employee.user_id == current_user.id,
+            Employee.status == "ACTIVE",
         )
+        .first()
+    )
+    if not employee:
+        raise HTTPException(
+            status_code=400,
+            detail="Tài khoản hiện tại chưa được liên kết với hồ sơ nhân viên",
+        )
+
+    if db.query(Payment).filter(Payment.ticket_id == ticket.id).first():
+        raise HTTPException(
+            status_code=400,
+            detail="Vé này đã có thanh toán",
+        )
+
+    fee = calculate_pricing_fee(
+        db,
+        ticket.vehicle.vehicle_type,
+        ticket.check_in,
+        now,
     )
 
-    vehicle_type = canonical_vehicle_type(ticket.vehicle.vehicle_type)
-    price_rule = db.query(PriceRule).filter(
-        PriceRule.vehicle_type == vehicle_type
-    ).first()
+    ticket.check_out = now
+    ticket.amount = fee
+    ticket.status = "PAID"
 
-    if price_rule:
-        if hours <= 1:
-            fee = price_rule.first_hour_price
-        else:
-            fee = (
-                price_rule.first_hour_price
-                + (hours - 1)
-                * price_rule.next_hour_price
-            )
-    else:
-        fee = 0
+    slot = db.query(ParkingSlot).filter(ParkingSlot.id == ticket.slot_id).first()
+    if slot:
+        slot.status = "EMPTY"
 
-    ticket.exit_time = now
-    ticket.fee = fee
-    ticket.status = "completed"
-
-    ticket.slot.status = "available"
+    payment = Payment(
+        ticket_id=ticket.id,
+        payment_method="CASH",
+        amount=fee,
+        paid_at=now,
+        employee_id=employee.id,
+        status="PAID",
+    )
+    db.add(payment)
 
     log_activity(
         db,
@@ -1396,34 +1818,34 @@ def vehicle_exit(
 # =========================================================
 
 def get_revenue_data(db: Session):
-    now = datetime.now()
+    now = datetime.now(VIETNAM_TIMEZONE)
     today = now.date()
     week_start = today - timedelta(days=6)
     month_start = today.replace(day=1)
 
-    completed_query = db.query(ParkingTicket).filter(
-        ParkingTicket.status == "completed",
-        ParkingTicket.exit_time.is_not(None),
-    )
-    completed = completed_query.all()
+    completed = [
+        (ticket, to_vietnam_datetime(ticket.exit_time))
+        for ticket in db.query(ParkingTicket).all()
+        if normalize_ticket_status(ticket.status) == "PAID" and ticket.exit_time is not None
+    ]
 
-    def in_range(ticket, start_date):
-        return ticket.exit_time.date() >= start_date
+    def in_range(local_exit_time, start_date):
+        return local_exit_time.date() >= start_date
 
     def total_for(start_date=None):
         return sum(
             float(ticket.fee or 0)
-            for ticket in completed
-            if start_date is None or in_range(ticket, start_date)
+            for ticket, local_exit_time in completed
+            if start_date is None or in_range(local_exit_time, start_date)
         )
 
     by_vehicle_type = {}
     by_day = {}
     trips_by_day = {}
 
-    for ticket in completed:
+    for ticket, local_exit_time in completed:
         vehicle_type = ticket.vehicle.vehicle_type if ticket.vehicle else "Khác"
-        day = ticket.exit_time.date().isoformat()
+        day = local_exit_time.date().isoformat()
         by_vehicle_type[vehicle_type] = (
             by_vehicle_type.get(vehicle_type, 0) + float(ticket.fee or 0)
         )
@@ -1450,7 +1872,7 @@ def get_revenue_data(db: Session):
 @app.get("/api/revenue")
 def get_revenue(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
     check_user(current_user)
     return get_revenue_data(db)
@@ -1461,33 +1883,27 @@ def get_revenue(
 # =========================================================
 
 def get_dashboard_data(db: Session):
-    total = db.query(ParkingSlot).count()
+    slots = db.query(ParkingSlot).all()
+    total = len(slots)
 
-    available = (
-        db.query(ParkingSlot)
-        .filter(ParkingSlot.status == "available")
-        .count()
+    available = sum(
+        1 for slot in slots if normalize_slot_db_status(slot.status) == "EMPTY"
     )
-
-    occupied = (
-        db.query(ParkingSlot)
-        .filter(ParkingSlot.status == "occupied")
-        .count()
+    occupied = sum(
+        1 for slot in slots if normalize_slot_db_status(slot.status) == "OCCUPIED"
     )
-
-    reserved = (
-        db.query(ParkingSlot)
-        .filter(ParkingSlot.status == "reserved")
-        .count()
+    reserved = sum(
+        1 for slot in slots if normalize_slot_db_status(slot.status) == "RESERVED"
     )
 
     total_vehicles = db.query(Vehicle).count()
-    active_tickets = db.query(ParkingTicket).filter(
-        ParkingTicket.status == "parking"
-    ).count()
-    completed_tickets = db.query(ParkingTicket).filter(
-        ParkingTicket.status == "completed"
-    ).count()
+    all_tickets = db.query(ParkingTicket).all()
+    active_tickets = sum(
+        1 for ticket in all_tickets if normalize_ticket_status(ticket.status) == "PARKING"
+    )
+    completed_tickets = sum(
+        1 for ticket in all_tickets if normalize_ticket_status(ticket.status) == "PAID"
+    )
     revenue = get_revenue_data(db)
     utilization_rate = round(
         ((occupied + reserved) / total * 100) if total else 0,
@@ -1500,9 +1916,9 @@ def get_dashboard_data(db: Session):
         {"status": "reserved", "count": reserved},
         {
             "status": "inactive",
-            "count": db.query(ParkingSlot)
-            .filter(ParkingSlot.status == "inactive")
-            .count(),
+            "count": sum(
+                1 for slot in slots if normalize_slot_db_status(slot.status) == "MAINTENANCE"
+            ),
         },
     ]
 
@@ -1538,7 +1954,19 @@ def dashboard(
 ):
     check_user(current_user)
 
-    return get_dashboard_data(db)
+    dashboard_data = get_dashboard_data(db)
+    if canonical_role(current_user.role) != "ADMIN":
+        for key in (
+            "revenue",
+            "total_revenue",
+            "revenue_today",
+            "revenue_week",
+            "revenue_month",
+            "revenue_by_vehicle_type",
+            "revenue_by_day",
+        ):
+            dashboard_data.pop(key, None)
+    return dashboard_data
 
 
 # Frontend hiện tại đang gọi /api/dashboard/summary
@@ -1549,4 +1977,16 @@ def dashboard_summary(
 ):
     check_user(current_user)
 
-    return get_dashboard_data(db)
+    dashboard_data = get_dashboard_data(db)
+    if canonical_role(current_user.role) != "ADMIN":
+        for key in (
+            "revenue",
+            "total_revenue",
+            "revenue_today",
+            "revenue_week",
+            "revenue_month",
+            "revenue_by_vehicle_type",
+            "revenue_by_day",
+        ):
+            dashboard_data.pop(key, None)
+    return dashboard_data

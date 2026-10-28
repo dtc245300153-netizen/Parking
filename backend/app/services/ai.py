@@ -88,7 +88,7 @@ def build_database_context(db: Session) -> dict[str, Any]:
         "slots": [
             {
                 "code": slot.slot_code,
-                "area": slot.area.name if slot.area else "",
+                "area": slot.area.area_name if slot.area else "",
                 "status": slot.status,
             }
             for slot in slots
@@ -99,9 +99,9 @@ def build_database_context(db: Session) -> dict[str, Any]:
                 "code": ticket.ticket_code,
                 "status": ticket.status,
                 "vehicle_type": ticket.vehicle.vehicle_type if ticket.vehicle else "",
-                "entry_time": ticket.entry_time.isoformat() if ticket.entry_time else None,
+                "entry_time": ticket.check_in.isoformat() if ticket.check_in else None,
                 "exit_time": ticket.exit_time.isoformat() if ticket.exit_time else None,
-                "fee": float(ticket.fee or 0),
+                "fee": float(ticket.amount or 0),
             }
             for ticket in tickets
         ],
@@ -131,7 +131,7 @@ def _today_tickets(db: Session):
     return [
         ticket
         for ticket in db.query(ParkingTicket).all()
-        if ticket.entry_time and ticket.entry_time.date() == today
+        if ticket.check_in and ticket.check_in.date() == today
     ]
 
 
@@ -148,21 +148,23 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
     slots = db.query(ParkingSlot).all()
     vehicles = db.query(Vehicle).all()
     tickets = db.query(ParkingTicket).all()
-    active_tickets = [ticket for ticket in tickets if ticket.status == "parking"]
     today_tickets = _today_tickets(db)
-    completed = [ticket for ticket in tickets if ticket.status == "completed"]
+    completed = [
+        ticket for ticket in tickets
+        if str(ticket.status).upper() in {"PAID", "COMPLETED", "FINISHED"}
+    ]
     today = datetime.now().date()
     month = today.replace(day=1)
 
     def revenue_since(start_date):
         return sum(
-            float(ticket.fee or 0)
+            float(ticket.amount or 0)
             for ticket in completed
             if ticket.exit_time and ticket.exit_time.date() >= start_date
         )
 
     if any(term in normalized for term in ["còn bao nhiêu chỗ", "chỗ trống", "vị trí đang trống"]):
-        available = sum(slot.status == "available" for slot in slots)
+        available = sum(str(slot.status).upper() in {"EMPTY", "AVAILABLE"} for slot in slots)
         return {
             "intent": "available_slots",
             "answer": f"Hiện bãi có {available} vị trí đang trống trên tổng số {len(slots)} vị trí.",
@@ -172,8 +174,8 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
     if "khu nào" in normalized and any(term in normalized for term in ["nhiều chỗ", "trống"]):
         areas: dict[str, int] = {}
         for slot in slots:
-            if slot.status == "available":
-                name = slot.area.name if slot.area else "Không xác định"
+            if str(slot.status).upper() in {"EMPTY", "AVAILABLE"}:
+                name = slot.area.area_name if slot.area else "Không xác định"
                 areas[name] = areas.get(name, 0) + 1
         if not areas:
             return {"intent": "area_availability", "answer": "Hiện không có khu vực nào còn vị trí trống.", "data": {}}
@@ -219,8 +221,8 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
     if "khung giờ" in normalized or "giờ nào" in normalized:
         hours: dict[int, int] = {}
         for ticket in tickets:
-            if ticket.entry_time:
-                hour = ticket.entry_time.hour
+            if ticket.check_in:
+                hour = ticket.check_in.hour
                 hours[hour] = hours.get(hour, 0) + 1
         if not hours:
             return {"intent": "peak_hour", "answer": "Chưa có dữ liệu lượt xe để xác định khung giờ đông nhất.", "data": {}}
@@ -231,8 +233,14 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
         code = "A01"
         for slot in slots:
             if code.lower() in normalized or slot.slot_code.lower() in normalized:
-                if slot.status == "occupied":
-                    ticket = next((item for item in slot.tickets if item.status == "parking"), None)
+                if str(slot.status).upper() == "OCCUPIED":
+                    ticket = next(
+                        (
+                            item for item in slot.tickets
+                            if str(item.status).upper() in {"PARKING", "ACTIVE"}
+                        ),
+                        None,
+                    )
                     vehicle = ticket.vehicle if ticket else None
                     answer = f"Vị trí {slot.slot_code} đang có xe {vehicle.license_plate if vehicle else 'chưa xác định'}."
                 else:
@@ -240,7 +248,10 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
                 return {"intent": "slot_status", "answer": answer, "data": {"slot_code": slot.slot_code, "status": slot.status}}
 
     if "công suất" in normalized or "phần trăm" in normalized:
-        occupied = sum(slot.status in ["occupied", "reserved"] for slot in slots)
+        occupied = sum(
+            str(slot.status).upper() in {"OCCUPIED", "RESERVED"}
+            for slot in slots
+        )
         utilization = round(occupied / len(slots) * 100, 2) if slots else 0
         return {"intent": "utilization", "answer": f"Công suất sử dụng hiện tại là {utilization}%.", "data": {"utilization": utilization}}
 

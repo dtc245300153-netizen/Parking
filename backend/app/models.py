@@ -1,13 +1,11 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship, synonym
 
 from .database import Base
 
 
-# =========================
-# 1. NGƯỜI DÙNG
-# =========================
 class User(Base):
     __tablename__ = "users"
 
@@ -15,166 +13,194 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(100), nullable=False)
-    role = Column(String(20), nullable=False, default="employee")
+    email = Column(String(100), unique=True, nullable=True)
+    phone = Column(String(30), nullable=True)
+    role = Column(String(20), nullable=False, default="EMPLOYEE")
+    status = Column(String(20), nullable=False, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    activity_logs = relationship(
-        "ActivityLog",
-        back_populates="user",
-    )
-
-    notifications = relationship(
-        "Notification",
-        back_populates="user",
-    )
-
-    def __repr__(self):
-        return f"<User {self.username}>"
+    employee = relationship("Employee", back_populates="user", uselist=False)
+    customer_profile = relationship("Customer", back_populates="user", uselist=False)
+    conversations = relationship("AIConversation", back_populates="user")
+    ai_logs = relationship("AILog", back_populates="user")
+    activity_logs = relationship("ActivityLog", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
 
 
-# =========================
-# 2. KHU VỰC
-# =========================
-class Area(Base):
-    __tablename__ = "areas"
+class Employee(Base):
+    __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    description = Column(String(255), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    employee_code = Column(String(50), unique=True, nullable=False)
+    position = Column(String(50), nullable=False)
+    status = Column(String(20), nullable=False, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    slots = relationship(
-        "ParkingSlot",
-        back_populates="area",
-        cascade="all, delete-orphan"
-    )
-
-    def __repr__(self):
-        return f"<Area {self.name}>"
+    user = relationship("User", back_populates="employee")
+    tickets = relationship("ParkingTicket", back_populates="employee")
+    payments = relationship("Payment", back_populates="employee")
 
 
-# =========================
-# 3. VỊ TRÍ ĐỖ
-# =========================
-class ParkingSlot(Base):
-    __tablename__ = "parking_slots"
+class Customer(Base):
+    __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
-    slot_code = Column(String(20), unique=True, nullable=False, index=True)
-    status = Column(String(20), nullable=False, default="available")
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True)
+    customer_code = Column(String(50), unique=True, nullable=False)
+    full_name = Column(String(100), nullable=False)
+    phone = Column(String(30), nullable=True)
+    email = Column(String(100), nullable=True)
+    address = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    area_id = Column(Integer, ForeignKey("areas.id"), nullable=False)
-
-    area = relationship(
-        "Area",
-        back_populates="slots"
-    )
-
-    tickets = relationship(
-        "ParkingTicket",
-        back_populates="slot"
-    )
-
-    def __repr__(self):
-        return f"<ParkingSlot {self.slot_code}>"
+    user = relationship("User", back_populates="customer_profile")
+    vehicles = relationship("Vehicle", back_populates="customer")
 
 
-# =========================
-# 4. PHƯƠNG TIỆN
-# =========================
 class Vehicle(Base):
     __tablename__ = "vehicles"
 
     id = Column(Integer, primary_key=True, index=True)
-    license_plate = Column(String(20), unique=True, nullable=False, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    license_plate = Column(String(30), unique=True, nullable=False, index=True)
     vehicle_type = Column(String(30), nullable=False)
-    owner_name = Column(String(100), nullable=True)
+    brand = Column(String(50), nullable=True)
+    color = Column(String(30), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    tickets = relationship(
-        "ParkingTicket",
-        back_populates="vehicle"
-    )
+    customer = relationship("Customer", back_populates="vehicles")
+    tickets = relationship("ParkingTicket", back_populates="vehicle")
 
-    def __repr__(self):
-        return f"<Vehicle {self.license_plate}>"
+    @property
+    def owner_name(self):
+        return self.customer.full_name if self.customer else ""
+
+    @owner_name.setter
+    def owner_name(self, value):
+        name = (value or "").strip()
+        if not name:
+            return
+        if self.customer is None:
+            self.customer = Customer(
+                customer_code=f"CUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                full_name=name,
+                phone="",
+                email="",
+                address="",
+            )
+        else:
+            self.customer.full_name = name
 
 
-# =========================
-# 5. BẢNG GIÁ
-# =========================
-class PriceRule(Base):
-    __tablename__ = "price_rules"
+class ParkingArea(Base):
+    __tablename__ = "parking_areas"
 
     id = Column(Integer, primary_key=True, index=True)
+    area_code = Column(String(50), unique=True, nullable=False, index=True)
+    area_name = Column(String(100), nullable=False)
     vehicle_type = Column(String(30), nullable=False)
-    first_hour_price = Column(Float, nullable=False)
-    next_hour_price = Column(Float, nullable=False)
-    monthly_price = Column(Float, nullable=True)
+    capacity = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="ACTIVE")
+    description = Column(Text, nullable=True)
 
-    def __repr__(self):
-        return f"<PriceRule {self.vehicle_type}>"
+    slots = relationship("ParkingSlot", back_populates="area")
 
 
-# =========================
-# 6. VÉ / LƯỢT GỬI XE
-# =========================
+class ParkingSlot(Base):
+    __tablename__ = "parking_slots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    area_id = Column(Integer, ForeignKey("parking_areas.id"), nullable=False)
+    slot_code = Column(String(50), unique=True, nullable=False, index=True)
+    status = Column(String(30), nullable=False, default="EMPTY")
+    floor = Column(Integer, nullable=False, default=1)
+    row_number = Column(Integer, nullable=False, default=1)
+    column_number = Column(Integer, nullable=False, default=1)
+
+    area = relationship("ParkingArea", back_populates="slots")
+    tickets = relationship("ParkingTicket", back_populates="slot")
+
+
 class ParkingTicket(Base):
     __tablename__ = "parking_tickets"
 
     id = Column(Integer, primary_key=True, index=True)
+    ticket_code = Column(String(50), unique=True, nullable=False, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False)
+    slot_id = Column(Integer, ForeignKey("parking_slots.id"), nullable=False)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    check_in = Column(DateTime, nullable=False, default=datetime.utcnow)
+    check_out = Column(DateTime, nullable=True)
+    amount = Column(Float, nullable=False, default=0)
+    status = Column(String(30), nullable=False, default="PARKING")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    exit_time = synonym("check_out")
+    fee = synonym("amount")
 
-    ticket_code = Column(
-        String(30),
-        unique=True,
-        nullable=False,
-        index=True
-    )
+    vehicle = relationship("Vehicle", back_populates="tickets")
+    slot = relationship("ParkingSlot", back_populates="tickets")
+    employee = relationship("Employee", back_populates="tickets")
+    payment = relationship("Payment", back_populates="ticket", uselist=False)
 
-    vehicle_id = Column(
-        Integer,
-        ForeignKey("vehicles.id"),
-        nullable=False
-    )
 
-    slot_id = Column(
-        Integer,
-        ForeignKey("parking_slots.id"),
-        nullable=False
-    )
+class Pricing(Base):
+    __tablename__ = "pricing"
 
-    entry_time = Column(
-        DateTime,
-        nullable=False,
-        default=datetime.now
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_type = Column(String(30), nullable=False)
+    from_minute = Column(Integer, nullable=False, default=0)
+    to_minute = Column(Integer, nullable=False, default=0)
+    price = Column(Float, nullable=False)
+    effective_from = Column(DateTime, nullable=False)
+    effective_to = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False, default="ACTIVE")
 
-    exit_time = Column(
-        DateTime,
-        nullable=True
-    )
 
-    fee = Column(
-        Float,
-        nullable=False,
-        default=0
-    )
+# Backward-compatible aliases for the existing project interfaces.
+Area = ParkingArea
+PriceRule = Pricing
 
-    status = Column(
-        String(20),
-        nullable=False,
-        default="parking"
-    )
 
-    vehicle = relationship(
-        "Vehicle",
-        back_populates="tickets"
-    )
+class Payment(Base):
+    __tablename__ = "payments"
 
-    slot = relationship(
-        "ParkingSlot",
-        back_populates="tickets"
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("parking_tickets.id"), unique=True, nullable=False)
+    payment_method = Column(String(30), nullable=False, default="CASH")
+    amount = Column(Float, nullable=False)
+    paid_at = Column(DateTime, nullable=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    status = Column(String(20), nullable=False, default="PAID")
 
-    def __repr__(self):
-        return f"<ParkingTicket {self.ticket_code}>"
+    ticket = relationship("ParkingTicket", back_populates="payment")
+    employee = relationship("Employee", back_populates="payments")
+
+
+class AIConversation(Base):
+    __tablename__ = "ai_conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="conversations")
+
+
+class AILog(Base):
+    __tablename__ = "ai_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    prompt = Column(Text, nullable=False)
+    input_data = Column(Text, nullable=True)
+    output_data = Column(Text, nullable=True)
+    feedback = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="ai_logs")
 
 
 class ActivityLog(Base):
@@ -187,7 +213,7 @@ class ActivityLog(Base):
     entity_id = Column(Integer, nullable=True)
     details = Column(String(1000), nullable=True)
     ip_address = Column(String(45), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     user = relationship("User", back_populates="activity_logs")
 
@@ -201,6 +227,6 @@ class Notification(Base):
     title = Column(String(120), nullable=False)
     message = Column(String(500), nullable=False)
     is_read = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     user = relationship("User", back_populates="notifications")

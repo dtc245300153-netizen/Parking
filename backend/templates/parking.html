@@ -15,9 +15,10 @@
       }
 
       body {
+        min-height: 100vh;
         font-family: Arial, sans-serif;
-        background: #f1f5f9;
-        color: #1e293b;
+        background: #f4f7fb;
+        color: #172033;
       }
 
       button,
@@ -30,19 +31,33 @@
         cursor: pointer;
       }
 
+      .report-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-weight: 700;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+
       /* ================= HEADER ================= */
 
       .header {
         height: 68px;
-        background: #172554;
+        background: linear-gradient(110deg, #102247 0%, #1748a0 58%, #2563eb 100%);
         color: white;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 28px;
+        padding: 0 30px;
         position: sticky;
         top: 0;
         z-index: 100;
+        box-shadow: 0 8px 24px rgba(17, 36, 73, 0.16);
       }
 
       .logo {
@@ -61,7 +76,8 @@
         background: #dc2626;
         color: white;
         padding: 9px 14px;
-        border-radius: 7px;
+        border-radius: 9px;
+        font-weight: 700;
       }
 
       .logout:hover {
@@ -72,14 +88,14 @@
 
       .layout {
         display: flex;
-        min-height: calc(100vh - 68px);
+        min-height: calc(100vh - 72px);
       }
 
       .sidebar {
-        width: 235px;
-        background: white;
+        width: 248px;
+        background: #fff;
         border-right: 1px solid #e2e8f0;
-        padding: 18px 12px;
+        padding: 22px 14px;
         flex-shrink: 0;
       }
 
@@ -97,75 +113,113 @@
         color: #475569;
         text-align: left;
         padding: 12px 14px;
-        margin-bottom: 5px;
-        border-radius: 8px;
+        margin-bottom: 6px;
+        border-radius: 11px;
         font-size: 14px;
+        transition: color 160ms ease, background 160ms ease, transform 160ms ease;
       }
 
       .menu-item:hover {
-        background: #eff6ff;
+        background: #f1f6ff;
         color: #2563eb;
+        transform: translateX(2px);
       }
 
       .menu-item.active {
-        background: #dbeafe;
-        color: #1d4ed8;
+        background: #e8f0ff;
+        color: #1b55c5;
         font-weight: bold;
+        box-shadow: inset 3px 0 #3478f6;
       }
 
       /* ================= CONTENT ================= */
 
       .content {
         flex: 1;
-        padding: 28px;
+        padding: 30px clamp(20px, 3vw, 46px);
         min-width: 0;
+        max-width: 1720px;
       }
 
       .page-title {
-        font-size: 27px;
-        margin-bottom: 5px;
+        font-size: clamp(24px, 2.2vw, 31px);
+        letter-spacing: -0.035em;
+        margin-bottom: 7px;
       }
 
       .subtitle {
         color: #64748b;
-        margin-bottom: 24px;
+        margin-bottom: 26px;
+        line-height: 1.55;
       }
 
       /* ================= STATS ================= */
 
       .stats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 24px;
       }
 
       .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid #e2e8f0;
+        position: relative;
+        min-height: 126px;
+        background: #fff;
+        border-radius: 20px;
+        padding: 20px 21px;
+        border: 1px solid #e8edf5;
+        box-shadow: 0 5px 16px rgba(18, 38, 71, 0.045), 0 1px 3px rgba(18, 38, 71, 0.035);
+        transition: transform 180ms ease, box-shadow 180ms ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 26px rgba(18, 38, 71, 0.09);
+      }
+
+      .stat-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
       }
 
       .stat-label {
         color: #64748b;
         font-size: 13px;
+        font-weight: 600;
+      }
+
+      .stat-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+        background: #eaf1ff;
+        font-size: 18px;
       }
 
       .stat-number {
-        font-size: 29px;
-        font-weight: bold;
-        margin-top: 8px;
+        font-size: clamp(26px, 2.3vw, 32px);
+        line-height: 1.2;
+        letter-spacing: -0.035em;
+        font-weight: 750;
+        margin-top: 15px;
+        color: #15213a;
       }
 
       /* ================= PANEL ================= */
 
       .panel {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 22px;
-        margin-bottom: 20px;
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 22px;
+        padding: clamp(18px, 2vw, 28px);
+        margin-bottom: 22px;
+        box-shadow: 0 8px 26px rgba(18, 38, 71, 0.055), 0 1px 3px rgba(18, 38, 71, 0.035);
       }
 
       .panel-header {
@@ -177,8 +231,9 @@
       }
 
       .panel-title {
-        font-size: 19px;
+        font-size: 20px;
         font-weight: bold;
+        letter-spacing: -0.02em;
       }
 
       /* ================= BUTTON ================= */
@@ -286,13 +341,14 @@
 
       .slot {
         min-height: 105px;
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 14px;
         color: white;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         transition: 0.15s;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 8px 18px rgba(15, 23, 42, 0.14);
       }
 
       .slot:hover {
@@ -401,6 +457,21 @@
         font-size: 20px;
         font-weight: bold;
         margin-bottom: 20px;
+      }
+
+      .modal-feedback {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border: 1px solid #fecaca;
+        border-radius: 12px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .modal-feedback[hidden] {
+        display: none;
       }
 
       .form-group {
@@ -692,9 +763,330 @@
 
       .ticket-summary {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+
+      .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+      }
+
+      .chart-card {
+        min-width: 0;
+        background: linear-gradient(160deg, #fff 0%, #fbfdff 100%);
+        border: 1px solid #e6edf7;
+        border-radius: 19px;
+        padding: 20px;
+        box-shadow: 0 5px 16px rgba(18, 38, 71, 0.04);
+      }
+
+      .chart-card h3 {
+        margin-bottom: 18px;
+        font-size: 16px;
+        color: #1d2b45;
+        letter-spacing: -0.015em;
+      }
+
+      .line-chart {
+        display: block;
+        width: 100%;
+        height: auto;
+        min-height: 195px;
+        overflow: visible;
+      }
+
+      .chart-gridline {
+        stroke: #e9eef6;
+        stroke-width: 1;
+      }
+
+      .chart-axis-label {
+        fill: #8491a6;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+      }
+
+      .chart-area {
+        opacity: 0.16;
+      }
+
+      .chart-line {
+        fill: none;
+        stroke: #3478f6;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: stroke-width 180ms ease;
+      }
+
+      .chart-line.chart-line-teal {
+        stroke: #10a786;
+      }
+
+      .chart-point {
+        cursor: pointer;
+        outline: none;
+      }
+
+      .chart-point circle {
+        fill: #fff;
+        stroke: #3478f6;
+        stroke-width: 3;
+        vector-effect: non-scaling-stroke;
+        transition: r 150ms ease, stroke-width 150ms ease;
+      }
+
+      .chart-point.chart-point-teal circle {
+        stroke: #10a786;
+      }
+
+      .chart-point:hover circle,
+      .chart-point:focus circle {
+        r: 6;
+        stroke-width: 4;
+      }
+
+      .chart-card:hover .chart-line {
+        stroke-width: 3.5;
+      }
+
+      .chart-tooltip {
+        fill: #172033;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .workflow-panel {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 14px;
+        margin-top: 18px;
+      }
+
+      .workflow-step {
+        background: linear-gradient(160deg, #f8fbff 0%, #fff 80%);
+        border: 1px solid #e6edf7;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 6px 20px rgba(18, 38, 71, 0.045);
+        transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+      }
+
+      .workflow-step:hover {
+        border-color: #cbdcf7;
+        box-shadow: 0 12px 28px rgba(18, 38, 71, 0.08);
+        transform: translateY(-2px);
+      }
+
+      .workflow-step .step-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        background: linear-gradient(145deg, #eaf2ff, #dceaff);
+        color: #2563eb;
+        margin-bottom: 15px;
+      }
+
+      .workflow-step .step-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .workflow-step h4 {
+        font-size: 15px;
+        line-height: 1.4;
+        margin-bottom: 8px;
+      }
+
+      .workflow-step p {
+        color: #64748b;
+        line-height: 1.5;
+        font-size: 13px;
+        margin-bottom: 0;
+      }
+
+      .workflow-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+      }
+
+      .pricing-guide {
+        margin: 0 0 16px;
+        padding: 14px 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 14px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .pricing-guide strong {
+        color: #1d4ed8;
+      }
+
+      .price-duration {
+        display: grid;
+        gap: 3px;
+      }
+
+      .price-duration small {
+        color: #64748b;
+      }
+
+      .price-status {
+        display: inline-flex;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #dcfce7;
+        color: #166534;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .price-status.inactive {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+
+      .mini-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .mini-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .mini-row span {
+        color: #475569;
+        font-size: 12px;
+      }
+
+      .mini-row strong {
+        color: #0f172a;
+        font-size: 14px;
+      }
+
+      .overview-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 18px;
         margin-bottom: 20px;
+      }
+
+      .overview-card {
+        background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
+        border: 1px solid #dbeafe;
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: 0 10px 24px rgba(59, 130, 246, 0.08);
+      }
+
+      .overview-card.primary {
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 52%, #ecfeff 100%);
+      }
+
+      .overview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .overview-kpi {
+        font-size: 12px;
+        color: #475569;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+
+      .overview-number {
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.1;
+        color: #0f172a;
+      }
+
+      .overview-trend {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #dcfce7;
+        color: #166534;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .spark-bars {
+        display: grid;
+        grid-template-columns: repeat(9, 1fr);
+        align-items: end;
+        gap: 8px;
+        height: 110px;
+        margin-top: 12px;
+      }
+
+      .spark-bars span {
+        display: block;
+        border-radius: 10px 10px 0 0;
+        background: linear-gradient(180deg, #60a5fa, #2563eb);
+        opacity: 0.88;
+      }
+
+      .insight-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .insight-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .insight-label {
+        color: #475569;
+        font-size: 13px;
+      }
+
+      .insight-value {
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
       }
 
       .parking-filters {
@@ -705,13 +1097,21 @@
       }
 
       .mini-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px;
+        background: #fff;
+        border: 1px solid #e7edf5;
+        border-radius: 17px;
+        padding: 18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 14px rgba(18, 38, 71, 0.035);
+        transition: transform 160ms ease, box-shadow 160ms ease;
+      }
+
+      .mini-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(18, 38, 71, 0.08);
       }
 
       .mini-card span {
@@ -720,7 +1120,8 @@
 
       .mini-card strong {
         font-size: 24px;
-        color: #172554;
+        color: #1c376b;
+        text-align: right;
       }
 
       .error-panel {
@@ -763,11 +1164,15 @@
 
       @media (max-width: 1000px) {
         .stats {
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .parking-grid {
           grid-template-columns: repeat(3, 1fr);
+        }
+
+        .chart-grid {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -781,7 +1186,7 @@
         }
 
         .stats {
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .parking-grid {
@@ -794,6 +1199,45 @@
 
         .header {
           padding: 0 15px;
+        }
+
+        .user-info {
+          gap: 8px;
+          font-size: 13px;
+        }
+
+        .stats {
+          gap: 10px;
+        }
+
+        .stat-card {
+          min-height: 112px;
+          padding: 15px;
+          border-radius: 16px;
+        }
+
+        .stat-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 10px;
+          font-size: 15px;
+        }
+
+        .stat-number {
+          margin-top: 10px;
+        }
+
+        .ticket-summary,
+        .workflow-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .chart-card {
+          padding: 15px;
+        }
+
+        .chart-axis-label {
+          font-size: 10px;
         }
 
         .ai-launcher {
@@ -861,28 +1305,39 @@
       </aside>
 
       <main class="content">
+        <div class="report-chip">📊 Dashboard báo cáo nghiệp vụ</div>
         <h1 class="page-title" id="pageTitle">Quản lý bãi đỗ xe</h1>
-
-        <p class="subtitle" id="pageSubtitle">Theo dõi tình trạng chỗ đỗ</p>
-
+        <p class="subtitle" id="pageSubtitle">Theo dõi tình trạng chỗ đỗ, doanh thu và lưu lượng theo giờ</p>
         <section class="stats">
           <div class="stat-card">
-            <div class="stat-label">Tổng vị trí</div>
+            <div class="stat-card-head">
+              <div class="stat-label">Tổng vị trí</div>
+              <span class="stat-icon" aria-hidden="true">🅿️</span>
+            </div>
             <div class="stat-number" id="totalSlots">--</div>
           </div>
 
           <div class="stat-card">
-            <div class="stat-label">Chỗ trống</div>
+            <div class="stat-card-head">
+              <div class="stat-label">Chỗ trống</div>
+              <span class="stat-icon" aria-hidden="true">🟢</span>
+            </div>
             <div class="stat-number" id="availableSlots">--</div>
           </div>
 
           <div class="stat-card">
-            <div class="stat-label">Đang đỗ</div>
+            <div class="stat-card-head">
+              <div class="stat-label">Đang đỗ</div>
+              <span class="stat-icon" aria-hidden="true">🚘</span>
+            </div>
             <div class="stat-number" id="occupiedSlots">--</div>
           </div>
 
           <div class="stat-card">
-            <div class="stat-label">Đã giữ</div>
+            <div class="stat-card-head">
+              <div class="stat-label">Đã giữ</div>
+              <span class="stat-icon" aria-hidden="true">🔖</span>
+            </div>
             <div class="stat-number" id="reservedSlots">--</div>
           </div>
         </section>
@@ -896,6 +1351,7 @@
         <div class="modal-title" id="modalTitle">Thao tác</div>
 
         <div id="modalBody"></div>
+        <div id="modalFeedback" class="modal-feedback" role="alert" aria-live="polite" hidden></div>
 
         <div class="modal-actions">
           <button class="btn btn-gray" onclick="closeModal()">Hủy</button>
@@ -903,7 +1359,7 @@
           <button
             class="btn btn-primary"
             id="modalSaveButton"
-            onclick="saveModal()"
+          onclick="saveModalWithFeedback()"
           >
             Lưu
           </button>
@@ -1022,7 +1478,7 @@
 
             function apiError(data) {
               if (!data) {
-                return "Lỗi không xác định";
+                return "Máy chủ không trả về thông tin lỗi";
               }
 
               if (typeof data === "string") {
@@ -1053,7 +1509,7 @@
                 return data.message;
               }
 
-              return JSON.stringify(data);
+              return Object.keys(data).length ? JSON.stringify(data) : "Máy chủ trả về lỗi nhưng không có nội dung chi tiết";
             }
 
             async function api(url, options = {}) {
@@ -1066,12 +1522,14 @@
                 },
               });
 
+              const responseText = await response.text();
               let data = {};
-
-              try {
-                data = await response.json();
-              } catch {
-                data = {};
+              if (responseText) {
+                try {
+                  data = JSON.parse(responseText);
+                } catch {
+                  data = responseText;
+                }
               }
 
               if (response.status === 401) {
@@ -1084,7 +1542,10 @@
               }
 
               if (!response.ok) {
-                throw new Error(apiError(data));
+                const detail = apiError(data);
+                throw new Error(
+                  `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}: ${detail}`,
+                );
               }
 
               return data;
@@ -1160,10 +1621,23 @@
               document.getElementById("modalTitle").textContent = title;
 
               document.getElementById("modalBody").innerHTML = body;
+              clearModalFeedback();
               document.getElementById("modalSaveButton").style.display =
                 mode === "viewSlot" ? "none" : "";
 
               document.getElementById("modal").classList.add("show");
+            }
+
+            function showModalFeedback(message) {
+              const feedback = document.getElementById("modalFeedback");
+              feedback.textContent = message;
+              feedback.hidden = false;
+            }
+
+            function clearModalFeedback() {
+              const feedback = document.getElementById("modalFeedback");
+              feedback.textContent = "";
+              feedback.hidden = true;
             }
 
             function closeModal() {
@@ -1251,6 +1725,10 @@
 
                 parkingAreaData = areaData;
 
+                const occupancyRate = totalSlots ? Math.round((occupiedSlots / totalSlots) * 100) : 0;
+                const utilization = totalSlots ? Math.round((availableSlots / totalSlots) * 100) : 0;
+                const maxBars = [72, 98, 84, 120, 146, 118, 132, 158, 142];
+
                 let html = `
                                     <div class="panel">
 
@@ -1272,6 +1750,72 @@
                                                 ➕ Thêm khu vực
                                             </button>
 
+                                        </div>
+
+                                        <div class="overview-grid">
+                                          <div class="overview-card primary">
+                                            <div class="overview-header">
+                                              <div>
+                                                <div class="overview-kpi">Tình trạng bãi</div>
+                                                <div class="overview-number">${occupancyRate}%</div>
+                                              </div>
+                                              <div class="overview-trend">📈 Hiện tại</div>
+                                            </div>
+                                            <div class="spark-bars">
+                                              ${maxBars.map((value) => `<span style="height:${(value / 160) * 100}%"></span>`).join("")}
+                                            </div>
+                                          </div>
+                                          <div class="overview-card">
+                                            <div class="overview-header">
+                                              <div>
+                                                <div class="overview-kpi">Tổng quan</div>
+                                                <div class="overview-number">${totalSlots}</div>
+                                              </div>
+                                            </div>
+                                            <div class="insight-list">
+                                              <div class="insight-item">
+                                                <span class="insight-label">Còn trống</span>
+                                                <span class="insight-value text-green">${availableSlots}</span>
+                                              </div>
+                                              <div class="insight-item">
+                                                <span class="insight-label">Đang đỗ</span>
+                                                <span class="insight-value text-red">${occupiedSlots}</span>
+                                              </div>
+                                              <div class="insight-item">
+                                                <span class="insight-label">Tỷ lệ sử dụng</span>
+                                                <span class="insight-value">${utilization}%</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div class="workflow-panel">
+                                          <div class="workflow-step">
+                                            <span class="step-icon" aria-hidden="true">
+                                              <svg viewBox="0 0 24 24"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3.5 11h17v7h-17zM6 18v1.5m12-1.5v1.5M6 14h.01M18 14h.01"/></svg>
+                                            </span>
+                                            <h4>Xe vào bãi</h4>
+                                            <p>Nhân viên chọn biển số, khu vực và vị trí còn trống để check-in.</p>
+                                          </div>
+                                          <div class="workflow-step">
+                                            <span class="step-icon" aria-hidden="true">
+                                              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3m5 0h2"/></svg>
+                                            </span>
+                                            <h4>Tính phí tự động</h4>
+                                            <p>Hệ thống đọc thời gian gửi, áp dụng bảng giá theo loại xe.</p>
+                                          </div>
+                                          <div class="workflow-step">
+                                            <span class="step-icon" aria-hidden="true">
+                                              <svg viewBox="0 0 24 24"><path d="M14 5h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/><path d="M10 16l4-4-4-4m4 4H3"/><path d="M6 19H4a2 2 0 0 1-2-2v-2"/></svg>
+                                            </span>
+                                            <h4>Xe ra & giải phóng</h4>
+                                            <p>Thanh toán xong, vị trí được cập nhật thành trống và doanh thu ghi nhận.</p>
+                                          </div>
+                                        </div>
+
+                                        <div class="workflow-actions">
+                                          <button class="btn btn-primary" onclick="vehicleEntry()">🚗 Mô phỏng xe vào</button>
+                                          <button class="btn btn-success" onclick="showTickets()">🎫 Xem quy trình vé</button>
                                         </div>
 
                                         <div class="parking-filters">
@@ -1570,6 +2114,32 @@
 
                                     <div class="form-group">
 
+                                      <label>Loại phương tiện</label>
+
+                                      <select id="areaVehicleType" class="form-control">
+                                        <option value="MIXED">Nhiều loại xe</option>
+                                        <option value="CAR">Ô tô</option>
+                                        <option value="MOTORBIKE">Xe máy</option>
+                                        <option value="EV">Xe điện</option>
+                                      </select>
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                      <label>Sức chứa</label>
+
+                                      <input
+                                        id="areaCapacity"
+                                        class="form-control"
+                                        type="number"
+                                        min="0"
+                                        value="0">
+
+                                    </div>
+
+                                    <div class="form-group">
+
                                       <label>Mô tả</label>
 
                                       <input
@@ -1608,6 +2178,32 @@
                                         id="areaDescription"
                                         class="form-control"
                                         value="${escapeHtml(area.description || "")}">
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                      <label>Loại phương tiện</label>
+
+                                      <select id="areaVehicleType" class="form-control">
+                                        <option value="MIXED" ${area.vehicle_type === "MIXED" ? "selected" : ""}>Nhiều loại xe</option>
+                                        <option value="CAR" ${area.vehicle_type === "CAR" ? "selected" : ""}>Ô tô</option>
+                                        <option value="MOTORBIKE" ${area.vehicle_type === "MOTORBIKE" ? "selected" : ""}>Xe máy</option>
+                                        <option value="EV" ${area.vehicle_type === "EV" ? "selected" : ""}>Xe điện</option>
+                                      </select>
+
+                                    </div>
+
+                                    <div class="form-group">
+
+                                      <label>Sức chứa</label>
+
+                                      <input
+                                        id="areaCapacity"
+                                        class="form-control"
+                                        type="number"
+                                        min="0"
+                                        value="${Number(area.capacity || 0)}">
 
                                     </div>
                                   `,
@@ -1945,134 +2541,158 @@
               }
             }
 
-            function addVehicle() {
-              openModal(
-                "➕ Thêm phương tiện",
+            async function addVehicle() {
+              try {
+                const customers = await api("/api/customers/");
+                const customerOptions = (Array.isArray(customers) ? customers : [])
+                  .map((customer) => `
+                    <option value="${customer.id}">
+                      ${escapeHtml(customer.full_name || customer.customer_code || `Khách hàng ${customer.id}`)}
+                    </option>
+                  `)
+                  .join("");
 
-                `
-                                    <div class="form-group">
+                openModal(
+                  "➕ Thêm phương tiện",
 
-                                        <label>Biển số</label>
+                  `
+                                        <div class="form-group">
 
-                                        <input
-                                            id="vehiclePlate"
-                                            class="form-control"
-                                            placeholder="VD: 30A-12345">
+                                            <label>Biển số</label>
 
-                                    </div>
+                                            <input
+                                                id="vehiclePlate"
+                                                class="form-control"
+                                                placeholder="VD: 30A-12345">
 
-                                    <div class="form-group">
+                                        </div>
 
-                                        <label>Loại xe</label>
+                                        <div class="form-group">
 
-                                        <select
-                                            id="vehicleType"
-                                            class="form-control">
+                                            <label>Loại xe</label>
 
-                                            <option value="car">
-                                                Ô tô
-                                            </option>
+                                            <select
+                                                id="vehicleType"
+                                                class="form-control">
 
-                                            <option value="motorbike">
-                                                Xe máy
-                                            </option>
+                                                <option value="car">
+                                                    Ô tô
+                                                </option>
 
-                                            <option value="truck">
-                                                Xe tải
-                                            </option>
+                                                <option value="motorbike">
+                                                    Xe máy
+                                                </option>
 
-                                            <option value="bus">
-                                                Xe buýt
-                                            </option>
+                                                <option value="truck">
+                                                    Xe tải
+                                                </option>
 
-                                        </select>
+                                                <option value="bus">
+                                                    Xe buýt
+                                                </option>
 
-                                    </div>
+                                            </select>
 
-                                    <div class="form-group">
+                                        </div>
 
-                                        <label>Chủ xe</label>
+                                        <div class="form-group">
 
-                                        <input
-                                            id="vehicleOwner"
-                                            class="form-control"
-                                            placeholder="Tên chủ xe">
+                                            <label>Khách hàng</label>
 
-                                    </div>
-                                `,
+                                            <select id="vehicleCustomer" class="form-control">
+                                                ${customerOptions || '<option value="">Chưa có khách hàng</option>'}
+                                            </select>
 
-                "addVehicle",
-              );
+                                        </div>
+                                    `,
+
+                  "addVehicle",
+                );
+              } catch (error) {
+                alert("❌ Không thể tải danh sách khách hàng: " + error.message);
+              }
             }
 
-            function editVehicle(vehicle) {
+            async function editVehicle(vehicle) {
               selectedId = vehicle.id;
 
-              openModal(
-                "✏️ Sửa phương tiện",
+              try {
+                const customers = await api("/api/customers/");
+                const customerOptions = (Array.isArray(customers) ? customers : [])
+                  .map((customer) => `
+                    <option value="${customer.id}" ${Number(vehicle.customer_id) === Number(customer.id) ? "selected" : ""}>
+                      ${escapeHtml(customer.full_name || customer.customer_code || `Khách hàng ${customer.id}`)}
+                    </option>
+                  `)
+                  .join("");
 
-                `
-                                    <div class="form-group">
+                openModal(
+                  "✏️ Sửa phương tiện",
 
-                                        <label>Biển số</label>
+                  `
+                                        <div class="form-group">
 
-                                        <input
-                                            id="vehiclePlate"
-                                            class="form-control"
-                                            value="${escapeHtml(vehicle.license_plate)}">
+                                            <label>Biển số</label>
 
-                                    </div>
+                                            <input
+                                                id="vehiclePlate"
+                                                class="form-control"
+                                                value="${escapeHtml(vehicle.license_plate)}">
 
-                                    <div class="form-group">
+                                        </div>
 
-                                        <label>Loại xe</label>
+                                        <div class="form-group">
 
-                                        <select
-                                            id="vehicleType"
-                                            class="form-control">
+                                            <label>Loại xe</label>
 
-                                            <option
-                                                value="car"
-                                                ${vehicle.vehicle_type === "car" ? "selected" : ""}>
-                                                Ô tô
-                                            </option>
+                                            <select
+                                                id="vehicleType"
+                                                class="form-control">
 
-                                            <option
-                                                value="motorbike"
-                                                ${vehicle.vehicle_type === "motorbike" ? "selected" : ""}>
-                                                Xe máy
-                                            </option>
+                                                <option
+                                                    value="car"
+                                                    ${vehicle.vehicle_type === "car" ? "selected" : ""}>
+                                                    Ô tô
+                                                </option>
 
-                                            <option
-                                                value="truck"
-                                                ${vehicle.vehicle_type === "truck" ? "selected" : ""}>
-                                                Xe tải
-                                            </option>
+                                                <option
+                                                    value="motorbike"
+                                                    ${vehicle.vehicle_type === "motorbike" ? "selected" : ""}>
+                                                    Xe máy
+                                                </option>
 
-                                            <option
-                                                value="bus"
-                                                ${vehicle.vehicle_type === "bus" ? "selected" : ""}>
-                                                Xe buýt
-                                            </option>
+                                                <option
+                                                    value="truck"
+                                                    ${vehicle.vehicle_type === "truck" ? "selected" : ""}>
+                                                    Xe tải
+                                                </option>
 
-                                        </select>
+                                                <option
+                                                    value="bus"
+                                                    ${vehicle.vehicle_type === "bus" ? "selected" : ""}>
+                                                    Xe buýt
+                                                </option>
 
-                                    </div>
+                                            </select>
 
-                                    <div class="form-group">
+                                        </div>
 
-                                        <label>Chủ xe</label>
+                                        <div class="form-group">
 
-                                        <input
-                                            id="vehicleOwner"
-                                            class="form-control"
-                                            value="${escapeHtml(vehicle.owner_name || "")}">
+                                            <label>Khách hàng</label>
 
-                                    </div>
-                                `,
+                                            <select id="vehicleCustomer" class="form-control">
+                                                ${customerOptions || '<option value="">Chưa có khách hàng</option>'}
+                                            </select>
 
-                "editVehicle",
-              );
+                                        </div>
+                                    `,
+
+                  "editVehicle",
+                );
+              } catch (error) {
+                alert("❌ Không thể tải danh sách khách hàng: " + error.message);
+              }
             }
 
             async function deleteVehicle(id) {
@@ -2223,8 +2843,8 @@
 
                                                                     <td>
                                                                         ${
-                                                                          ticket.status ===
-                                                                          "parking"
+                                                                          String(ticket.status || "").toUpperCase() ===
+                                                                          "PARKING"
                                                                             ? `<span class="badge badge-red">Đang đỗ</span>`
                                                                             : `<span class="badge badge-green">Hoàn thành</span>`
                                                                         }
@@ -2233,8 +2853,8 @@
                                                                     <td>
 
                                                                         ${
-                                                                          ticket.status ===
-                                                                          "parking"
+                                                                          String(ticket.status || "").toUpperCase() ===
+                                                                          "PARKING"
                                                                             ? `
                                                                                 <button
                                                                                     class="btn btn-success btn-small"
@@ -2286,7 +2906,8 @@
                 const vehiclesData = await api("/api/vehicles/");
                 const areasData = await api("/api/areas/");
 
-                const vehicles = Array.isArray(vehiclesData) ? vehiclesData : [];
+                const vehicles = (Array.isArray(vehiclesData) ? vehiclesData : [])
+                  .filter((vehicle) => vehicle.status !== "parking");
 
                 const areas = Array.isArray(areasData) ? areasData : [];
 
@@ -2430,6 +3051,11 @@
 
               try {
                 const prices = await api("/api/prices/");
+                const sortedPrices = [...prices].sort((a, b) =>
+                  vehicleTypeLabel(a.vehicle_type).localeCompare(vehicleTypeLabel(b.vehicle_type), "vi")
+                  || Number(a.from_minute) - Number(b.from_minute)
+                  || Number(a.to_minute) - Number(b.to_minute),
+                );
 
                 content.innerHTML = `
 
@@ -2449,10 +3075,17 @@
 
                                         </div>
 
+                                        <div class="pricing-guide">
+                                          <strong>Không cần chọn bảng giá cho từng xe.</strong>
+                                          Khi thanh toán, hệ thống tự áp dụng theo loại xe và tổng thời gian gửi.
+                                          Ví dụ: ô tô gửi 60 phút → dùng dòng <strong>Ô tô · 1–120 phút</strong>.
+                                          Giá trong mỗi dòng là phí của toàn bộ khoảng đó, không cộng dồn các dòng trước.
+                                        </div>
+
                                           <input
                                             id="priceSearch"
                                             class="form-control"
-                                            placeholder="Tìm theo loại xe"
+                                            placeholder="Tìm theo loại xe hoặc khoảng thời gian"
                                             oninput="filterRows('priceSearch', '#pricesTable tbody tr')">
 
                                         <div class="table-wrapper">
@@ -2465,9 +3098,10 @@
 
                                                         <th>ID</th>
                                                         <th>Loại xe</th>
-                                                        <th>Giờ đầu</th>
-                                                        <th>Giờ tiếp</th>
-                                                        <th>Tháng</th>
+                                                        <th>Áp dụng khi gửi</th>
+                                                        <th>Đơn giá</th>
+                                                        <th>Hiệu lực</th>
+                                                        <th>Trạng thái</th>
                                                         <th>Thao tác</th>
 
                                                     </tr>
@@ -2476,35 +3110,36 @@
 
                                                 <tbody>
 
-                                                    ${prices
+                                                    ${sortedPrices
                                                       .map(
                                                         (price) => `
 
-                                                            <tr>
+                                                            <tr data-search="${escapeHtml(`${price.vehicle_type} ${vehicleTypeLabel(price.vehicle_type)} ${price.from_minute} ${price.to_minute}`.toLowerCase())}">
 
                                                                 <td>
                                                                     ${price.id}
                                                                 </td>
 
                                                                 <td>
-                                                                    ${escapeHtml(price.vehicle_type)}
+                                                                    ${escapeHtml(vehicleTypeLabel(price.vehicle_type))}
                                                                 </td>
 
                                                                 <td>
-                                                                    ${formatMoney(
-                                                                      price.first_hour_price,
-                                                                    )}
+                                                                    <div class="price-duration">
+                                                                      <strong>${formatPriceDuration(price.from_minute, price.to_minute)}</strong>
+                                                                      <small>${Number(price.to_minute) === 0 ? "Không giới hạn thời gian tối đa" : "Tính theo toàn bộ thời gian gửi"}</small>
+                                                                    </div>
                                                                 </td>
 
                                                                 <td>
-                                                                    ${formatMoney(
-                                                                      price.next_hour_price,
-                                                                    )}
+                                                                    ${formatMoney(price.price)}
                                                                 </td>
 
                                                                 <td>
-                                                                    ${formatMoney(price.monthly_price)}
+                                                                    ${escapeHtml(formatDate(price.effective_from))}
                                                                 </td>
+
+                                                                <td><span class="price-status ${String(price.status || "ACTIVE").toUpperCase() === "ACTIVE" ? "" : "inactive"}">${String(price.status || "ACTIVE").toUpperCase() === "ACTIVE" ? "Đang áp dụng" : "Ngừng áp dụng"}</span></td>
 
                                                                 <td>
 
@@ -2570,60 +3205,133 @@
             }
 
             function priceForm(price = {}) {
+              const localDateTimeValue = (date) => {
+                const offset = date.getTimezoneOffset() * 60000;
+                return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+              };
+              const effectiveFrom = price.effective_from
+                ? String(price.effective_from).slice(0, 16)
+                : localDateTimeValue(new Date());
+              const effectiveTo = price.effective_to
+                ? String(price.effective_to).slice(0, 16)
+                : "";
               return `
 
                                 <div class="form-group">
 
                                     <label>Loại xe</label>
 
-                                    <input
-                                        id="priceVehicleType"
-                                        class="form-control"
-                                        value="${escapeHtml(price.vehicle_type || "")}"
-                                        placeholder="car">
+                                    <select id="priceVehicleType" class="form-control">
+                                      <option value="CAR" ${price.vehicle_type === "CAR" ? "selected" : ""}>Ô tô</option>
+                                      <option value="MOTORBIKE" ${price.vehicle_type === "MOTORBIKE" ? "selected" : ""}>Xe máy</option>
+                                      <option value="EV" ${price.vehicle_type === "EV" ? "selected" : ""}>Xe điện</option>
+                                      <option value="TRUCK" ${price.vehicle_type === "TRUCK" ? "selected" : ""}>Xe tải</option>
+                                      <option value="BUS" ${price.vehicle_type === "BUS" ? "selected" : ""}>Xe buýt</option>
+                                    </select>
 
                                 </div>
 
                                 <div class="form-group">
 
-                                    <label>Giá giờ đầu</label>
+                                    <label>Từ phút</label>
 
                                     <input
-                                        id="firstHourPrice"
+                                        id="priceFromMinute"
                                         class="form-control"
                                         type="number"
                                         min="0"
-                                        value="${price.first_hour_price ?? 0}">
+                                        oninput="clearModalFeedback()"
+                                        value="${price.from_minute ?? 0}">
 
                                 </div>
 
                                 <div class="form-group">
 
-                                    <label>Giá giờ tiếp theo</label>
+                                    <label>Đến phút (0 = không giới hạn)</label>
 
                                     <input
-                                        id="nextHourPrice"
+                                        id="priceToMinute"
                                         class="form-control"
                                         type="number"
                                         min="0"
-                                        value="${price.next_hour_price ?? 0}">
+                                        oninput="clearModalFeedback()"
+                                        value="${price.to_minute ?? 120}">
 
                                 </div>
 
                                 <div class="form-group">
 
-                                    <label>Giá tháng</label>
+                                    <label>Đơn giá cho thời lượng này</label>
 
                                     <input
-                                        id="monthlyPrice"
+                                        id="priceAmount"
                                         class="form-control"
                                         type="number"
                                         min="0"
-                                        value="${price.monthly_price ?? 0}">
+                                        oninput="clearModalFeedback()"
+                                        value="${price.price ?? 0}">
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label>Hiệu lực từ</label>
+
+                                    <input
+                                        id="priceEffectiveFrom"
+                                        class="form-control"
+                                        type="datetime-local"
+                                        onchange="clearModalFeedback()"
+                                        value="${escapeHtml(effectiveFrom)}">
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label>Hiệu lực đến (không bắt buộc)</label>
+
+                                    <input
+                                        id="priceEffectiveTo"
+                                        class="form-control"
+                                        type="datetime-local"
+                                        onchange="clearModalFeedback()"
+                                        value="${escapeHtml(effectiveTo)}">
+
+                                </div>
+
+                                <div class="form-group">
+
+                                    <label>Trạng thái</label>
+
+                                    <select id="priceStatus" class="form-control">
+                                      <option value="ACTIVE" ${price.status !== "INACTIVE" ? "selected" : ""}>Đang áp dụng</option>
+                                      <option value="INACTIVE" ${price.status === "INACTIVE" ? "selected" : ""}>Ngừng áp dụng</option>
+                                    </select>
 
                                 </div>
 
                             `;
+            }
+
+            function vehicleTypeLabel(value) {
+                            const labels = {
+                              CAR: "Ô tô",
+                              MOTORBIKE: "Xe máy",
+                              EV: "Xe điện",
+                              TRUCK: "Xe tải",
+                              BUS: "Xe buýt",
+                            };
+                            const normalized = String(value || "").trim().toUpperCase();
+                            return labels[normalized] || normalized || "Chưa phân loại";
+            }
+
+            function formatPriceDuration(fromMinute, toMinute) {
+                            const start = Math.max(0, Number(fromMinute) || 0);
+                            const end = Math.max(0, Number(toMinute) || 0);
+                            const startLabel = start === 0 ? "1" : String(start);
+                            return end === 0
+                              ? `Từ ${startLabel} phút trở lên`
+                              : `${startLabel}–${end} phút`;
             }
 
             async function deletePrice(id) {
@@ -2661,13 +3369,13 @@
               try {
                 const tickets = await api("/api/tickets/");
                 const revenueData = await api("/api/revenue");
-
-                const completed = tickets.filter((x) => x.status === "completed");
-
+                const completed = tickets.filter((x) => String(x.status || "").toUpperCase() === "PAID");
                 const revenue = completed.reduce(
                   (sum, x) => sum + Number(x.fee || 0),
                   0,
                 );
+                const hourlyRevenue = buildHourlyRevenueChart(tickets);
+                const dailyRevenue = buildRevenueChart(revenueData.by_day || []);
 
                 content.innerHTML = `
 
@@ -2683,20 +3391,31 @@
 
                                         <div class="ticket-summary">
                                           <div class="mini-card">
-                                            <span>Tổng doanh thu</span>
-                                            <strong>${formatMoney(revenueData.total)}</strong>
+                                            <span>💰 Tổng doanh thu</span>
+                                            <strong>${formatMoney(revenueData.total ?? revenue)}</strong>
                                           </div>
                                           <div class="mini-card">
-                                            <span>Hôm nay</span>
+                                            <span>📅 Hôm nay</span>
                                             <strong>${formatMoney(revenueData.today)}</strong>
                                           </div>
                                           <div class="mini-card">
-                                            <span>Tháng này</span>
+                                            <span>📈 Tháng này</span>
                                             <strong>${formatMoney(revenueData.month)}</strong>
                                           </div>
                                         </div>
 
-                                        <div class="table-wrapper">
+                                        <div class="chart-grid">
+                                          <div class="chart-card">
+                                            <h3>📈 Doanh thu theo ngày</h3>
+                                            ${dailyRevenue}
+                                          </div>
+                                          <div class="chart-card">
+                                            <h3>🕒 Doanh thu theo giờ</h3>
+                                            ${hourlyRevenue}
+                                          </div>
+                                        </div>
+
+                                        <div class="table-wrapper" style="margin-top:18px;">
 
                                             <table>
 
@@ -2757,6 +3476,32 @@
               }
             }
 
+            function buildHourlyRevenueChart(tickets) {
+              const summary = Array.from({ length: 24 }, (_, hour) => {
+                const total = (Array.isArray(tickets) ? tickets : []).reduce((sum, ticket) => {
+                  if (String(ticket.status || "").toUpperCase() !== "PAID") return sum;
+                  const raw = ticket.exit_time || ticket.check_out;
+                  if (!raw) return sum;
+                  const date = parseAppDate(raw);
+                  if (Number.isNaN(date.getTime()) || date.getHours() !== hour) return sum;
+                  return sum + Number(ticket.fee || 0);
+                }, 0);
+
+                return {
+                  label: `${hour}:00`,
+                  value: total,
+                };
+              });
+
+              return buildLineChart(summary, {
+                id: "hourly-revenue",
+                color: "blue",
+                currency: true,
+                description: "Doanh thu theo giờ",
+                xLabelInterval: 3,
+              });
+            }
+
             /* =====================================================
                            STATISTICS
                         ===================================================== */
@@ -2774,6 +3519,9 @@
 
               try {
                 const data = await api("/api/dashboard/summary");
+                const tickets = await api("/api/tickets/");
+                const dailyChart = buildRevenueChart(data.revenue_by_day || []);
+                const hourlyChart = buildHourlyTrafficChart(tickets);
 
                 content.innerHTML = `
 
@@ -2791,11 +3539,11 @@
                                             margin-top:20px;
                                         ">
 
-                                            ${statBox("📍", "Tổng vị trí", data.total_slots)}
+                                            ${statBox("🅿️", "Tổng vị trí", data.total_slots)}
 
                                             ${statBox("🟢", "Trống", data.available_slots)}
 
-                                            ${statBox("🔴", "Đang đỗ", data.occupied_slots)}
+                                            ${statBox("🚘", "Đang đỗ", data.occupied_slots)}
 
                                             ${statBox("🟡", "Đã giữ", data.reserved_slots)}
 
@@ -2829,6 +3577,46 @@
 
                                         </div>
 
+                                        <div class="chart-grid">
+                                          <div class="chart-card">
+                                            <h3>📉 Doanh thu theo ngày</h3>
+                                            ${dailyChart}
+                                          </div>
+                                          <div class="chart-card">
+                                            <h3>🚦 Lưu lượng theo giờ</h3>
+                                            ${hourlyChart}
+                                          </div>
+                                        </div>
+
+                                        <div class="workflow-panel">
+                                          <div class="workflow-step">
+                                            <span class="step-icon" aria-hidden="true">
+                                              <svg viewBox="0 0 24 24"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><path d="M3.5 11h17v7h-17zM6 18v1.5m12-1.5v1.5M6 14h.01M18 14h.01"/></svg>
+                                            </span>
+                                            <h4>Check-in</h4>
+                                            <p>Hệ thống khớp biển số, chọn vị trí trống và cập nhật trạng thái.</p>
+                                          </div>
+                                          <div class="workflow-step">
+                                            <span class="step-icon" aria-hidden="true">
+                                              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3m5 0h2"/></svg>
+                                            </span>
+                                            <h4>Thanh toán</h4>
+                                            <p>Đồng hồ gửi xe và bảng giá được dùng để tính phí đúng thời điểm.</p>
+                                          </div>
+                                          <div class="workflow-step">
+                                            <span class="step-icon" aria-hidden="true">
+                                              <svg viewBox="0 0 24 24"><path d="M14 5h5a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/><path d="M10 16l4-4-4-4m4 4H3"/><path d="M6 19H4a2 2 0 0 1-2-2v-2"/></svg>
+                                            </span>
+                                            <h4>Giải phóng bãi</h4>
+                                            <p>Vị trí trở về trống, doanh thu được ghi nhận và báo cáo cập nhật.</p>
+                                          </div>
+                                        </div>
+
+                                        <div class="workflow-actions">
+                                          <button class="btn btn-primary" onclick="vehicleEntry()">🚗 Mô phỏng xe vào</button>
+                                          <button class="btn btn-success" onclick="showRevenue()">💰 Xem doanh thu</button>
+                                        </div>
+
                                     </div>
                                 `;
               } catch (error) {
@@ -2842,37 +3630,152 @@
               }
             }
 
+            function buildRevenueChart(revenueByDay) {
+              const items = Array.isArray(revenueByDay) && revenueByDay.length
+                ? revenueByDay.slice(-7).map((entry) => ({
+                    label: entry.date ? entry.date.slice(5) : "-",
+                    value: Math.max(0, Number(entry.revenue || 0)),
+                  }))
+                : [
+                    { label: "Hôm nay", value: 0 },
+                    { label: "-", value: 0 },
+                    { label: "-", value: 0 },
+                  ];
+
+              return buildLineChart(items, {
+                id: "daily-revenue",
+                color: "blue",
+                currency: true,
+                description: "Doanh thu theo ngày",
+              });
+            }
+
+            function buildHourlyTrafficChart(tickets) {
+              const hourly = Array.from({ length: 24 }, (_, hour) => {
+                const count = (Array.isArray(tickets) ? tickets : []).filter((ticket) => {
+                  const raw = ticket.entry_time || ticket.check_in;
+                  if (!raw) return false;
+                  const date = parseAppDate(raw);
+                  return !Number.isNaN(date.getTime()) && date.getHours() === hour;
+                }).length;
+
+                return {
+                  label: `${hour}:00`,
+                  value: count,
+                };
+              });
+
+              return buildLineChart(hourly, {
+                id: "hourly-traffic",
+                color: "teal",
+                description: "Số lượt xe theo giờ",
+                xLabelInterval: 3,
+              });
+            }
+
+            function buildLineChart(items, options = {}) {
+              const chartItems = Array.isArray(items) && items.length
+                ? items.map((item) => {
+                    const value = Number(item.value);
+                    return {
+                      label: String(item.label ?? ""),
+                      value: Number.isFinite(value) ? Math.max(0, value) : 0,
+                    };
+                  })
+                : [{ label: "Chưa có dữ liệu", value: 0 }];
+              const width = 760;
+              const height = 240;
+              const left = 66;
+              const right = 18;
+              const top = 18;
+              const bottom = 38;
+              const plotWidth = width - left - right;
+              const plotHeight = height - top - bottom;
+              const maxValue = Math.max(...chartItems.map((item) => item.value), 1);
+              const points = chartItems.map((item, index) => ({
+                ...item,
+                x: chartItems.length === 1
+                  ? left + plotWidth / 2
+                  : left + (plotWidth * index) / (chartItems.length - 1),
+                y: top + plotHeight - (item.value / maxValue) * plotHeight,
+              }));
+              const linePath = points.reduce((path, point, index) => {
+                if (index === 0) return `M ${point.x} ${point.y}`;
+                const previous = points[index - 1];
+                const beforePrevious = points[index - 2] || previous;
+                const next = points[index + 1] || point;
+                const controlOneX = previous.x + (point.x - beforePrevious.x) / 6;
+                const controlOneY = previous.y + (point.y - beforePrevious.y) / 6;
+                const controlTwoX = point.x - (next.x - previous.x) / 6;
+                const controlTwoY = point.y - (next.y - previous.y) / 6;
+                return `${path} C ${controlOneX} ${controlOneY}, ${controlTwoX} ${controlTwoY}, ${point.x} ${point.y}`;
+              }, "");
+              const baseline = top + plotHeight;
+              const areaPath = `${linePath} L ${points[points.length - 1].x} ${baseline} L ${points[0].x} ${baseline} Z`;
+              const gradientId = `chart-gradient-${String(options.id || "data").replace(/[^a-z0-9-]/gi, "")}`;
+              const lineClass = options.color === "teal" ? "chart-line chart-line-teal" : "chart-line";
+              const pointClass = options.color === "teal" ? "chart-point chart-point-teal" : "chart-point";
+              const valueLabel = (value) => options.currency ? formatMoney(value) : `${value} lượt`;
+              const gridLines = [0, 0.5, 1].map((ratio) => {
+                const y = top + plotHeight * (1 - ratio);
+                const value = maxValue * ratio;
+                const compact = (amount) => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(amount);
+                const label = options.currency
+                  ? value >= 1_000_000_000
+                    ? `${compact(value / 1_000_000_000)} tỷ ₫`
+                    : value >= 1_000_000
+                      ? `${compact(value / 1_000_000)} tr ₫`
+                      : value >= 1_000
+                        ? `${compact(value / 1_000)}k ₫`
+                        : formatMoney(value)
+                  : maxValue < 2 && ratio === 0.5
+                    ? ""
+                    : Math.round(value);
+                return `
+                  <g>
+                    <line class="chart-gridline" x1="${left}" y1="${y}" x2="${width - right}" y2="${y}"></line>
+                    <text class="chart-axis-label" x="${left - 10}" y="${y + 4}" text-anchor="end">${escapeHtml(label)}</text>
+                  </g>
+                `;
+              }).join("");
+              const chartPoints = points.map((point) => `
+                <g class="${pointClass}" tabindex="0" role="graphics-symbol" aria-label="${escapeHtml(`${point.label}: ${valueLabel(point.value)}`)}">
+                  <title>${escapeHtml(`${point.label}: ${valueLabel(point.value)}`)}</title>
+                  <circle cx="${point.x}" cy="${point.y}" r="4"></circle>
+                </g>
+              `).join("");
+              const xLabelInterval = Math.max(1, Number(options.xLabelInterval) || 1);
+              const xLabels = points.map((point, index) => index % xLabelInterval === 0 || index === points.length - 1 ? `
+                <text class="chart-axis-label" x="${point.x}" y="${height - 10}" text-anchor="middle">${escapeHtml(point.label)}</text>
+              ` : "").join("");
+
+              return `
+                <svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(options.description || "Biểu đồ dữ liệu")}">
+                  <defs>
+                    <linearGradient id="${gradientId}" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="${options.color === "teal" ? "#10a786" : "#3478f6"}" stop-opacity="0.32"></stop>
+                      <stop offset="100%" stop-color="${options.color === "teal" ? "#10a786" : "#3478f6"}" stop-opacity="0.015"></stop>
+                    </linearGradient>
+                  </defs>
+                  ${gridLines}
+                  <path class="chart-area" d="${areaPath}" fill="url(#${gradientId})"></path>
+                  <path class="${lineClass}" d="${linePath}"></path>
+                  ${chartPoints}
+                  ${xLabels}
+                </svg>
+              `;
+            }
+
             function statBox(icon, title, value) {
               return `
-
-                                <div style="
-                                    background:#f8fafc;
-                                    border:1px solid #e2e8f0;
-                                    border-radius:10px;
-                                    padding:20px;
-                                ">
-
-                                    <div style="font-size:25px">
-                                        ${icon}
-                                    </div>
-
-                                    <div style="
-                                        color:#64748b;
-                                        margin-top:8px;
-                                    ">
-                                        ${title}
-                                    </div>
-
-                                    <div style="
-                                        font-size:26px;
-                                        font-weight:bold;
-                                        margin-top:5px;
-                                    ">
-                                        ${value}
-                                    </div>
-
-                                </div>
-                            `;
+                <article class="stat-card">
+                  <div class="stat-card-head">
+                    <div class="stat-label">${escapeHtml(title)}</div>
+                    <span class="stat-icon" aria-hidden="true">${icon}</span>
+                  </div>
+                  <div class="stat-number">${escapeHtml(value)}</div>
+                </article>
+              `;
             }
 
             /* =====================================================
@@ -2886,6 +3789,8 @@
                 const description = document
                   .getElementById("areaDescription")
                   .value.trim();
+                const vehicleType = document.getElementById("areaVehicleType").value;
+                const capacity = Number(document.getElementById("areaCapacity").value);
 
                 if (!name) {
                   alert("❌ Tên khu vực không được để trống");
@@ -2893,9 +3798,17 @@
                   return;
                 }
 
+                if (!Number.isInteger(capacity) || capacity < 0) {
+                  alert("❌ Sức chứa phải là số nguyên không âm");
+
+                  return;
+                }
+
                 const areaParams = new URLSearchParams();
                 areaParams.append("name", name);
                 areaParams.append("description", description);
+                areaParams.append("vehicle_type", vehicleType);
+                areaParams.append("capacity", String(capacity));
 
                 await api(
                   modalMode === "addArea"
@@ -2989,10 +3902,16 @@
 
                 const type = document.getElementById("vehicleType").value;
 
-                const owner = document.getElementById("vehicleOwner").value.trim();
+                const customerId = document.getElementById("vehicleCustomer")?.value || "";
 
                 if (!plate) {
                   alert("❌ Biển số không được để trống");
+
+                  return;
+                }
+
+                if (!customerId) {
+                  alert("❌ Vui lòng chọn khách hàng cho phương tiện");
 
                   return;
                 }
@@ -3003,7 +3922,7 @@
 
                 params.append("vehicle_type", type);
 
-                params.append("owner_name", owner);
+                params.append("customer_id", customerId);
 
                 await api(
                   modalMode === "addVehicle"
@@ -3072,22 +3991,36 @@
 
               if (modalMode === "addPrice" || modalMode === "editPrice") {
                 const type = document.getElementById("priceVehicleType").value.trim();
+                const fromMinute = Number(document.getElementById("priceFromMinute").value);
+                const toMinute = Number(document.getElementById("priceToMinute").value);
+                const amount = Number(document.getElementById("priceAmount").value);
+                const effectiveFrom = document.getElementById("priceEffectiveFrom").value;
+                const effectiveTo = document.getElementById("priceEffectiveTo").value;
+                const status = document.getElementById("priceStatus").value;
 
-                const first = document.getElementById("firstHourPrice").value;
+                if (!Number.isInteger(fromMinute) || fromMinute < 0
+                    || !Number.isInteger(toMinute) || toMinute < 0
+                    || !Number.isFinite(amount) || amount < 0
+                    || !effectiveFrom) {
+                  showModalFeedback("Kiểm tra loại xe, khoảng thời gian, đơn giá và ngày hiệu lực.");
+                  return;
+                }
 
-                const next = document.getElementById("nextHourPrice").value;
-
-                const monthly = document.getElementById("monthlyPrice").value;
+                if (toMinute !== 0 && toMinute < fromMinute) {
+                  showModalFeedback("Mốc phút kết thúc phải lớn hơn hoặc bằng mốc bắt đầu.");
+                  return;
+                }
 
                 const params = new URLSearchParams();
 
                 params.append("vehicle_type", type);
 
-                params.append("first_hour_price", first);
-
-                params.append("next_hour_price", next);
-
-                params.append("monthly_price", monthly);
+                params.append("from_minute", String(fromMinute));
+                params.append("to_minute", String(toMinute));
+                params.append("price", String(amount));
+                params.append("effective_from", effectiveFrom);
+                params.append("effective_to", effectiveTo);
+                params.append("status", status);
 
                 await api(
                   modalMode === "addPrice"
@@ -3105,12 +4038,6 @@
                   },
                 );
 
-                alert(
-                  modalMode === "addPrice"
-                    ? "✅ Đã thêm bảng giá"
-                    : "✅ Đã sửa bảng giá",
-                );
-
                 closeModal();
 
                 showPrices();
@@ -3118,6 +4045,26 @@
                 return;
               }
 
+              throw new Error("Không xác định được loại dữ liệu cần lưu");
+            }
+
+            async function saveModalWithFeedback() {
+              const saveButton = document.getElementById("modalSaveButton");
+              if (saveButton.disabled) {
+                return;
+              }
+
+              saveButton.disabled = true;
+              try {
+                await saveModal();
+              } catch (error) {
+                console.error("Không thể lưu dữ liệu:", error);
+                const message = (error.message || "Không thể lưu dữ liệu.")
+                  .replace(/^HTTP \d+(?: [^:]+)?:\s*/, "");
+                showModalFeedback(message);
+              } finally {
+                saveButton.disabled = false;
+              }
             }
 
               /* =====================================================
@@ -3141,12 +4088,30 @@
                 ) + " ₫";
               }
 
+              function parseAppDate(value) {
+                if (value instanceof Date) {
+                  return value;
+                }
+
+                if (typeof value !== "string" || !value.trim()) {
+                  return new Date(Number.NaN);
+                }
+
+                const normalized = value.trim().replace(" ", "T");
+                if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+                  return new Date(`${normalized}T00:00:00`);
+                }
+
+                const hasTimezone = /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(normalized);
+                return new Date(hasTimezone ? normalized : `${normalized}Z`);
+              }
+
               function formatDate(value) {
                 if (!value) {
                   return "-";
                 }
 
-                const date = new Date(value);
+                const date = parseAppDate(value);
 
                 return Number.isNaN(date.getTime())
                   ? "-"
