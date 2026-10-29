@@ -39,7 +39,7 @@ flowchart TD
     Response --> Chat
 ```
 
-Parking chat calls the native Gemini `generateContent` API for each question when `AI_PROVIDER=gemini`, `AI_API_KEY`, and `AI_MODEL` are configured. The key remains on the backend and is sent in the `x-goog-api-key` header, never in the URL or API response. Gemini receives database-backed business data; for supported factual questions, backend-calculated values are included as the source of truth. Staffing remains a transparent heuristic, not a forecast or shift scheduler. Provider errors are identified in the response and UI, which label successful answers with source `gemini` and the model name. `backend/check_gemini.py` verifies a live connection; mocked tests do not replace this check.
+Parking chat supports local Ollama, Gemini, and hosted OpenAI-compatible providers such as Groq. Ollama is configured with `AI_PROVIDER=ollama`; it defaults to the local endpoint and `qwen2.5:3b` and requires no API key. General questions are sent without parking database records; supported parking questions use backend-calculated values as their source of truth. The assistant does not search the live web. Staffing remains a transparent heuristic, not a forecast or shift scheduler. Provider errors are labeled in the response and UI; `backend/check_ollama.py` verifies a live local connection.
 
 - **Domain API:** existing areas, slots, vehicles, tickets and prices remain the source of truth.
 - **Dashboard:** `/api/dashboard/summary` and `/api/revenue` calculate metrics from database rows. The browser refreshes the summary periodically so the first real-time version does not expose a token in an SSE query string.
@@ -48,7 +48,7 @@ Parking chat calls the native Gemini `generateContent` API for each question whe
 - **Audit:** `/api/audit-logs` reads `activity_logs`; ticket entry and exit currently create audit records.
 - **Notifications:** `/api/notifications` reads database-backed notifications; ticket entry and exit create notifications from real events.
 - **QR:** `/api/tickets/{ticket_id}/qr` returns a versioned payload for a QR renderer. No fake image is returned when no QR renderer is configured.
-- **AI:** `/api/ai/assistant` uses Gemini when configured and returns an explicit source/model label; otherwise it answers supported questions with database rules. Staffing remains a transparent heuristic, and model failures return an explicit fallback. `/api/ai/capabilities` reports chatbot/staffing status separately from unimplemented occupancy forecasting and license-plate recognition. `backend/check_gemini.py` is the live connection smoke test.
+- **AI:** `/api/ai/assistant` uses the configured provider and returns an explicit source/model label; otherwise it answers supported questions with database rules. Staffing remains a transparent heuristic, and model failures return an explicit fallback. `/api/ai/capabilities` reports chatbot/staffing status separately from unimplemented occupancy forecasting and license-plate recognition. `backend/check_gemini.py` is the live connection smoke test for Gemini.
 - **Backup:** `backup_database.py` and `restore_database.py` use SQLite's online backup API. Restore should be run with the application stopped and a verified backup path.
 
 ## Production migration path

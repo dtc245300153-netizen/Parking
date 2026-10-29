@@ -65,6 +65,32 @@ def test_login_and_admin_only_revenue_report(client, db_session):
     assert employee_response.status_code == 403
 
 
+def test_employee_can_register_vehicle_with_freely_typed_customer_name(
+    client,
+    db_session,
+):
+    _user(db_session, "vehicle_staff", "EMPLOYEE")
+
+    response = client.post(
+        "/api/vehicles/",
+        headers=_login(client, "vehicle_staff"),
+        data={
+            "license_plate": "FREE-123",
+            "vehicle_type": "car",
+            "owner_name": "Khách hàng nhập tự do",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["customer_name"] == "Khách hàng nhập tự do"
+    assert (
+        db_session.query(Customer)
+        .filter(Customer.full_name == "Khách hàng nhập tự do")
+        .count()
+        == 1
+    )
+
+
 def test_ticket_entry_exit_updates_slot_and_charges_fee(client, db_session):
     employee_user = _user(db_session, "parking_staff", "EMPLOYEE")
     customer = Customer(customer_code="C-TEST", full_name="Test Customer")

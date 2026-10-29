@@ -14,10 +14,16 @@ from ..time_utils import VIETNAM_TIMEZONE, to_vietnam_datetime
 
 
 COMPATIBLE_AI_PROVIDERS = {
+    "groq",
     "openai_compatible",
     "openai",
     "ollama",
 }
+
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"
+OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
+OLLAMA_DEFAULT_MODEL = "qwen2.5:3b"
 
 GEMINI_API_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -136,6 +142,26 @@ class OpenAiCompatibleProvider:
         self.provider_name = provider_name
 
     def answer(self, question: str, context: dict[str, Any]) -> str:
+        if context:
+            system_prompt = (
+                "Bạn là trợ lý AI Parking. Trả lời câu hỏi kiến thức chung bằng "
+                "kiến thức sẵn có. Với câu hỏi nghiệp vụ bãi xe, dựa trên Context; "
+                "nếu có reference_answer thì diễn đạt lại và giữ nguyên số liệu. "
+                "Nếu dữ liệu bãi xe không đủ thì nói rõ, không bịa. Bạn không tra "
+                "cứu web thời gian thực."
+            )
+            user_content = (
+                f"Câu hỏi: {question}\n"
+                f"Context: {json.dumps(context, ensure_ascii=False)}"
+            )
+        else:
+            system_prompt = (
+                "Bạn là trợ lý AI thân thiện, trả lời trực tiếp câu hỏi bằng kiến "
+                "thức tổng quát của mình. Đừng nói rằng thiếu context hoặc thiếu dữ "
+                "liệu. Bạn không tra cứu web thời gian thực."
+            )
+            user_content = question
+
         response = httpx.post(
             f"{self.base_url}/chat/completions",
             headers={
@@ -144,24 +170,19 @@ class OpenAiCompatibleProvider:
             },
             json={
                 "model": self.model,
-                "temperature": 0,
+                "temperature": 0.2 if self.provider_name == "ollama" else 0,
                 "messages": [
                     {
                         "role": "system",
-                        "content": (
-                            "Bạn là Parking AI. Chỉ trả lời bằng context JSON được cung cấp. "
-                            "Không đoán hoặc sửa số liệu. Với staffing_estimate, giữ nguyên "
-                            "recommended_staff và nêu rõ đây là ước tính theo giả định. "
-                            "Nói rõ khi context không đủ."
-                        ),
+                        "content": system_prompt,
                     },
                     {
                         "role": "user",
-                        "content": f"Câu hỏi: {question}\nContext: {json.dumps(context, ensure_ascii=False)}",
+                        "content": user_content,
                     },
                 ],
             },
-            timeout=20,
+            timeout=120 if self.provider_name == "ollama" else 20,
         )
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
@@ -176,48 +197,32 @@ def get_configured_provider() -> OpenAiCompatibleProvider | GeminiProvider | Non
         or "openai_compatible"
     )
     api_key = os.getenv("AI_API_KEY", "").strip()
-    if not api_key:
+    if not api_key and provider_name != "ollama":
         return None
+    if provider_name == "ollama":
+        base_url = os.getenv("AI_BASE_URL", "").strip() or OLLAMA_BASE_URL
+        model = os.getenv("AI_MODEL", "").strip() or OLLAMA_DEFAULT_MODEL
+        return OpenAiCompatibleProvider(
+            base_url,
+            api_key or "ollama",
+            model,
+            provider_name,
+        )
     if provider_name == "gemini":
         model = os.getenv("AI_MODEL", "").strip() or "gemini-3.8-flash"
         return GeminiProvider(api_key, model)
     if provider_name not in COMPATIBLE_AI_PROVIDERS:
         raise ValueError(
-            "AI_PROVIDER phải là gemini, openai, openai_compatible hoặc ollama."
+            "AI_PROVIDER phải là gemini, groq, openai, openai_compatible hoặc ollama."
         )
     base_url = os.getenv("AI_BASE_URL", "").strip()
     model = os.getenv("AI_MODEL", "").strip()
+    if provider_name == "groq":
+        base_url = base_url or GROQ_BASE_URL
+        model = model or GROQ_DEFAULT_MODEL
     if not base_url or not model:
         return None
     return OpenAiCompatibleProvider(base_url, api_key, model, provider_name)
-
-
-def build_database_context(db: Session) -> dict[str, Any]:
-    slots = db.query(ParkingSlot).all()
-    tickets = db.query(ParkingTicket).all()
-    vehicles = db.query(Vehicle).all()
-    return {
-        "slots": [
-            {
-                "code": slot.slot_code,
-                "area": slot.area.area_name if slot.area else "",
-                "status": slot.status,
-            }
-            for slot in slots
-        ],
-        "vehicles": len(vehicles),
-        "tickets": [
-            {
-                "code": ticket.ticket_code,
-                "status": ticket.status,
-                "vehicle_type": ticket.vehicle.vehicle_type if ticket.vehicle else "",
-                "entry_time": ticket.check_in.isoformat() if ticket.check_in else None,
-                "exit_time": ticket.exit_time.isoformat() if ticket.exit_time else None,
-                "fee": float(ticket.amount or 0),
-            }
-            for ticket in tickets
-        ],
-    }
 
 
 def answer_question(db: Session, question: str) -> dict[str, Any]:
@@ -227,14 +232,16 @@ def answer_question(db: Session, question: str) -> dict[str, Any]:
     except LookupError:
         if provider is None:
             raise
-        context = build_database_context(db)
+        context: dict[str, Any] = {}
         try:
             answer = provider.answer(question, context)
         except (httpx.HTTPError, RuntimeError):
             return {
                 "intent": "model_analysis",
                 "answer": (
-                    "Gemini không kết nối được hoặc trả về dữ liệu không hợp lệ. "
+                    f"{_provider_display_name(getattr(provider, 'provider_name', ''))} "
+                    "không kết nối được "
+                    "hoặc trả về dữ liệu không hợp lệ. "
                     "Vui lòng thử lại sau."
                 ),
                 "data": context,
@@ -268,7 +275,9 @@ def answer_question(db: Session, question: str) -> dict[str, Any]:
         return {
             **result,
             "answer": (
-                f"{result['answer']} Gemini hiện không kết nối được; "
+                f"{result['answer']} "
+                f"{_provider_display_name(getattr(provider, 'provider_name', ''))} "
+                "hiện không kết nối được; "
                 "đây là kết quả tính từ dữ liệu hệ thống."
             ),
             "source": "deterministic_fallback",
@@ -279,6 +288,15 @@ def answer_question(db: Session, question: str) -> dict[str, Any]:
         "source": provider.provider_name,
         "model": provider.model,
     }
+
+
+def _provider_display_name(provider_name: str) -> str:
+    return {
+        "gemini": "Gemini",
+        "groq": "Groq",
+        "ollama": "Ollama",
+        "openai": "OpenAI",
+    }.get(provider_name, "AI")
 
 
 def _money(value: float) -> str:

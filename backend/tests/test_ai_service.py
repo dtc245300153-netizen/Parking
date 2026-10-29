@@ -168,6 +168,65 @@ def test_openai_compatible_provider_sends_key_and_parking_context_server_side(mo
     assert capabilities["chatbot"]["provider"] == "openai_compatible"
 
 
+def test_groq_provider_uses_default_endpoint_and_model(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "groq")
+    monkeypatch.setenv("AI_API_KEY", "groq-test-key")
+    monkeypatch.delenv("AI_BASE_URL", raising=False)
+    monkeypatch.delenv("AI_MODEL", raising=False)
+
+    provider = get_configured_provider()
+
+    assert provider is not None
+    assert provider.provider_name == "groq"
+    assert provider.base_url == "https://api.groq.com/openai/v1"
+    assert provider.model == "openai/gpt-oss-120b"
+
+
+def test_ollama_provider_uses_local_defaults_without_api_key(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_BASE_URL", raising=False)
+    monkeypatch.delenv("AI_MODEL", raising=False)
+
+    provider = get_configured_provider()
+
+    assert provider is not None
+    assert provider.provider_name == "ollama"
+    assert provider.base_url == "http://127.0.0.1:11434/v1"
+    assert provider.model == "qwen2.5:3b"
+    assert provider.api_key == "ollama"
+
+
+def test_ollama_general_question_is_sent_without_empty_context(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_BASE_URL", raising=False)
+    monkeypatch.delenv("AI_MODEL", raising=False)
+    captured = {}
+
+    class _Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": "Toyota."}}]}
+
+    def fake_post(url, **kwargs):
+        captured["url"] = url
+        captured.update(kwargs)
+        return _Response()
+
+    monkeypatch.setattr("app.services.ai.httpx.post", fake_post)
+    provider = get_configured_provider()
+
+    assert provider is not None
+    assert provider.answer("Hãng xe nào nổi tiếng?", {}) == "Toyota."
+    assert captured["json"]["messages"][1]["content"] == "Hãng xe nào nổi tiếng?"
+    assert "Đừng nói rằng thiếu context" in captured["json"]["messages"][0]["content"]
+    assert captured["json"]["temperature"] == 0.2
+    assert captured["timeout"] == 120
+
+
 def test_gemini_provider_uses_native_api_and_keeps_key_server_side(monkeypatch):
     api_key = "gemini-test-key"
     monkeypatch.setenv("AI_PROVIDER", "gemini")
@@ -296,6 +355,25 @@ def test_configured_gemini_handles_supported_parking_questions(monkeypatch):
     assert result["answer"] == "Gemini: bãi hiện chưa có vị trí."
     assert result["source"] == "gemini"
     assert result["model"] == "gemini-test"
+
+
+def test_general_question_uses_ai_without_sending_database_context(monkeypatch):
+    class _Provider:
+        provider_name = "groq"
+        model = "groq-test"
+
+        def answer(self, question, context):
+            assert question == "Hãng xe nào nổi tiếng?"
+            assert context == {}
+            return "Toyota và Mercedes-Benz là những hãng xe nổi tiếng."
+
+    monkeypatch.setattr("app.services.ai.get_configured_provider", lambda: _Provider())
+
+    result = answer_question(_FakeDb([]), "Hãng xe nào nổi tiếng?")
+
+    assert result["source"] == "groq"
+    assert result["model"] == "groq-test"
+    assert "Toyota" in result["answer"]
 
 
 def test_staffing_falls_back_when_configured_provider_fails(monkeypatch):

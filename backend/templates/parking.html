@@ -2590,18 +2590,18 @@
       onclick="toggleAiChat()"
       aria-controls="aiPanel"
       aria-expanded="false">
-      🤖 Gemini Parking
+      🤖 Parking AI
     </button>
 
-    <section class="ai-panel" id="aiPanel" aria-label="Gemini Parking Assistant">
+    <section class="ai-panel" id="aiPanel" aria-label="Parking AI Assistant">
       <header class="ai-header">
-        <strong>🤖 Gemini Parking</strong>
+        <strong>🤖 Parking AI</strong>
         <button class="ai-close" type="button" onclick="toggleAiChat()" aria-label="Đóng trợ lý">×</button>
       </header>
 
       <div class="ai-messages" id="aiMessages" role="log" aria-live="polite">
         <div class="ai-message assistant">
-          Xin chào! Tôi có thể giúp bạn phân tích dữ liệu bãi đỗ. Câu trả lời sẽ ghi rõ Gemini hay dữ liệu hệ thống.
+          Xin chào! Tôi có thể trả lời câu hỏi chung và hỗ trợ phân tích dữ liệu bãi đỗ. Thông tin bãi xe được lấy từ hệ thống; AI không tra cứu web thời gian thực.
         </div>
       </div>
 
@@ -2813,10 +2813,17 @@
                   },
                   body: JSON.stringify({ question: text }),
                 });
-                const sourceLabel = result.source === "gemini"
-                  ? `Gemini${result.model ? ` (${result.model})` : ""}`
-                  : result.source === "deterministic_fallback"
-                    ? "Dữ liệu hệ thống (Gemini không khả dụng)"
+                const providerNames = {
+                  gemini: "Gemini",
+                  groq: "Groq",
+                  openai: "OpenAI",
+                  ollama: "Ollama",
+                  openai_compatible: "AI",
+                };
+                const sourceLabel = result.source === "deterministic_fallback"
+                  ? "Dữ liệu hệ thống (AI không khả dụng)"
+                  : providerNames[result.source]
+                    ? `${providerNames[result.source]}${result.model ? ` (${result.model})` : ""}`
                     : "Dữ liệu hệ thống";
                 loading.textContent = `${sourceLabel}: ${result.answer || "Không có dữ liệu trả lời."}`;
               } catch (error) {
@@ -4047,17 +4054,7 @@
             }
 
             async function addVehicle() {
-              try {
-                const customers = await api("/api/customers/");
-                const customerOptions = (Array.isArray(customers) ? customers : [])
-                  .map((customer) => `
-                    <option value="${customer.id}">
-                      ${escapeHtml(customer.full_name || customer.customer_code || `Khách hàng ${customer.id}`)}
-                    </option>
-                  `)
-                  .join("");
-
-                openModal(
+              openModal(
                   "➕ Thêm phương tiện",
 
                   `
@@ -4104,34 +4101,22 @@
 
                                             <label>Khách hàng</label>
 
-                                            <select id="vehicleCustomer" class="form-control">
-                                                ${customerOptions || '<option value="">Chưa có khách hàng</option>'}
-                                            </select>
-
+                                            <input
+                                                id="vehicleCustomer"
+                                                class="form-control"
+                                                placeholder="Nhập tên khách hàng"
+                                                autocomplete="off">
                                         </div>
                                     `,
 
                   "addVehicle",
                 );
-              } catch (error) {
-                alert("❌ Không thể tải danh sách khách hàng: " + error.message);
-              }
             }
 
             async function editVehicle(vehicle) {
               selectedId = vehicle.id;
 
-              try {
-                const customers = await api("/api/customers/");
-                const customerOptions = (Array.isArray(customers) ? customers : [])
-                  .map((customer) => `
-                    <option value="${customer.id}" ${Number(vehicle.customer_id) === Number(customer.id) ? "selected" : ""}>
-                      ${escapeHtml(customer.full_name || customer.customer_code || `Khách hàng ${customer.id}`)}
-                    </option>
-                  `)
-                  .join("");
-
-                openModal(
+              openModal(
                   "✏️ Cập nhật phương tiện",
 
                   `
@@ -4186,18 +4171,17 @@
 
                                             <label>Khách hàng</label>
 
-                                            <select id="vehicleCustomer" class="form-control">
-                                                ${customerOptions || '<option value="">Chưa có khách hàng</option>'}
-                                            </select>
-
+                                            <input
+                                                id="vehicleCustomer"
+                                                class="form-control"
+                                                value="${escapeHtml(vehicle.customer_name || vehicle.owner_name || "")}"
+                                                placeholder="Nhập tên khách hàng"
+                                                autocomplete="off">
                                         </div>
                                     `,
 
                   "editVehicle",
                 );
-              } catch (error) {
-                alert("❌ Không thể tải danh sách khách hàng: " + error.message);
-              }
             }
 
             async function deleteVehicle(id) {
@@ -5578,7 +5562,7 @@
 
                 const type = document.getElementById("vehicleType").value;
 
-                const customerId = document.getElementById("vehicleCustomer")?.value || "";
+                const customerName = document.getElementById("vehicleCustomer").value.trim();
 
                 if (!plate) {
                   alert("❌ Biển số không được để trống");
@@ -5586,8 +5570,8 @@
                   return;
                 }
 
-                if (!customerId) {
-                  alert("❌ Vui lòng chọn khách hàng cho phương tiện");
+                if (!customerName) {
+                  alert("❌ Tên khách hàng không được để trống");
 
                   return;
                 }
@@ -5598,7 +5582,7 @@
 
                 params.append("vehicle_type", type);
 
-                params.append("customer_id", customerId);
+                params.append("owner_name", customerName);
 
                 await api(
                   modalMode === "addVehicle"

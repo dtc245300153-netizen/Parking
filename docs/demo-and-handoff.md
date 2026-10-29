@@ -14,20 +14,26 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8080
 
 Open `http://127.0.0.1:8080/login`. The local demo account created by `create_admin.py` is `admin` / `123456`; use it only in a local demo and change the password before deployment.
 
-## Gemini AI mode
+## Local AI configuration
 
-The Parking chat uses Google's native Gemini `generateContent` API. Set these values in `backend/.env`:
+Install Ollama, then download a Vietnamese-capable local model:
+
+```powershell
+ollama pull qwen2.5:3b
+```
+
+Set these values in `backend/.env`; no API key is required:
 
 ```dotenv
-AI_PROVIDER=gemini
-AI_API_KEY=your-Gemini-API-key
-AI_MODEL=gemini-3.8-flash
+AI_PROVIDER=ollama
+AI_BASE_URL=http://127.0.0.1:11434/v1
+AI_MODEL=qwen2.5:3b
 AI_ARRIVALS_PER_EMPLOYEE_PER_HOUR=10
 ```
 
-The key is sent only from the backend in the `x-goog-api-key` request header; it is not included in the URL or returned to the browser. Do not paste it into chat, frontend code, logs, or committed files. `backend/.env` is ignored by Git.
+Run `python check_ollama.py` from `backend` to verify a live local response. The assistant does not search the live web; model speed and answer quality depend on the computer. Local inference avoids hosted API quotas but is not guaranteed to be error-free. Gemini and Groq remain supported as alternatives.
 
-Run `python check_gemini.py` from `backend` for a live smoke test. `GEMINI_LIVE=OK` is printed only after a real HTTP response contains valid Gemini text. In the UI, a successful answer is labeled with Gemini and its model name; deterministic fallback is labeled as system data. Every supported operational chat question is sent to Gemini when configured, with backend-calculated data as the source of truth. If Gemini is unavailable, the UI explicitly identifies fallback answers. Occupancy forecasting and license-plate recognition remain unimplemented.
+On Windows systems with older GPU drivers, run Ollama CPU-only to avoid incompatible GPU backends. Set the user environment variables `OLLAMA_VULKAN=0` and `GGML_VK_VISIBLE_DEVICES=-1`, then restart Ollama. CPU-only responses may be slower.
 
 ## Demo flow
 
@@ -38,7 +44,7 @@ Run `python check_gemini.py` from `backend` for a live smoke test. `GEMINI_LIVE=
 5. Open Parking Assistant and ask `Báo cáo lưu lượng xe tuần này theo ngày`.
 6. Ask `Khung giờ nào đông nhất tuần này?` and explain that peaks are grouped by Vietnam-local date and hour.
 7. Ask `Gợi ý bố trí nhân sự tuần này`. State the configured arrivals-per-employee assumption and that the result is an estimate, not a shift schedule.
-8. Configure the key in `backend/.env`, restart the server, run `python check_gemini.py`, and confirm a chat answer is labeled `Gemini (gemini-3.8-flash)`. Only report Gemini as live if both checks succeeded.
+8. Start Ollama, configure the selected provider in `backend/.env`, restart the server, and confirm a chat answer is labeled with the configured provider and model.
 
 ## Automated test coverage
 

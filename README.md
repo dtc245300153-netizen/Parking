@@ -46,7 +46,7 @@ Tài khoản demo được tạo bởi `create_admin.py`:
 - `/api/audit-logs`, `/api/notifications`: nhật ký admin và thông báo theo tài khoản.
 - `GET /api/dashboard/summary`: chỉ số vị trí, xe, vé, doanh thu và công suất.
 - `GET /api/revenue`: doanh thu theo thời gian/loại xe/ngày.
-- `POST /api/ai/assistant`: data assistant truy vấn dữ liệu thật, báo cáo lượt xe theo ngày/tuần, giờ cao điểm và ước tính nhân sự.
+- `POST /api/ai/assistant`: trợ lý trả lời câu hỏi chung và truy vấn dữ liệu bãi xe; báo cáo lượt xe theo ngày/tuần, giờ cao điểm và ước tính nhân sự.
 - `GET /api/ai/capabilities`: trạng thái các AI capability.
 - `GET /docs`: Swagger UI.
 
@@ -89,7 +89,8 @@ Giao diện đã được kiểm tra bằng browser flow đăng nhập, chuyển
 ## Lưu ý triển khai
 
 - Dùng `SECRET_KEY` riêng, HTTPS, CORS allowlist và database PostgreSQL khi triển khai production.
-- Parking chat uses the official Gemini `generateContent` API. Set `AI_PROVIDER=gemini`, `AI_API_KEY`, and `AI_MODEL=gemini-3.8-flash` in `backend/.env`; `AI_BASE_URL` is not required. The key stays server-side in the `x-goog-api-key` header and must never be exposed in frontend code or committed files.
-- Run `cd backend; python check_gemini.py` for a real model request. Successful chat answers display `Gemini (model-name)`; fallback answers are labeled as system data.
+- Parking AI supports local Ollama, Groq, and Gemini. Local Ollama avoids hosted API keys and provider quotas, but requires Ollama and a local model installed; response speed and quality depend on the computer. Its default configuration is `AI_PROVIDER=ollama`, `AI_BASE_URL=http://127.0.0.1:11434/v1`, and `AI_MODEL=qwen2.5:3b`.
+- On older Windows GPU drivers, set the user environment variables `OLLAMA_VULKAN=0` and `GGML_VK_VISIBLE_DEVICES=-1`, then restart Ollama to use CPU inference.
+- AI answers use model knowledge and do not search the live web; current information is not guaranteed. Parking facts and metrics continue to come from the project database. No provider can guarantee zero errors or answer literally everything.
 - QR image renderer, reservation, số điện thoại, tầng và loại vị trí chưa được giả lập; các boundary/interface đã được chuẩn bị trong code và docs.
 - Chưa có gói vé tháng hoặc quy tắc hiệu lực/thanh toán định kỳ; demo hiện tính phí theo thời lượng gửi và bảng giá hiện tại.
