@@ -4,12 +4,32 @@ import json
 import os
 from math import ceil
 from typing import Any, Protocol
+from urllib.parse import quote, urlsplit
 
 import httpx
 from sqlalchemy.orm import Session
 
 from ..models import ParkingSlot, ParkingTicket, Vehicle
 from ..time_utils import VIETNAM_TIMEZONE, to_vietnam_datetime
+
+
+COMPATIBLE_AI_PROVIDERS = {
+    "openai_compatible",
+    "openai",
+    "ollama",
+}
+
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "{model}:generateContent"
+)
+
+GEMINI_SYSTEM_PROMPT = (
+    "Bạn là Gemini, trợ lý nghiệp vụ của hệ thống Parking. "
+    "Chỉ dùng dữ liệu được cung cấp; không bịa hoặc tự tính lại số liệu. "
+    "Nếu có reference_answer, giữ nguyên các con số và ý nghĩa của câu trả lời đó, "
+    "chỉ diễn giải cho dễ hiểu. Nếu dữ liệu không đủ, hãy nói rõ."
+)
 
 
 @dataclass(frozen=True)
@@ -25,6 +45,58 @@ class AiProvider(Protocol):
         ...
 
 
+class GeminiProvider:
+    """Google Gemini generateContent API provider."""
+
+    provider_name = "gemini"
+
+    def __init__(self, api_key: str, model: str):
+        self.api_key = api_key
+        self.model = model
+
+    def answer(self, question: str, context: dict[str, Any]) -> str:
+        response = httpx.post(
+            GEMINI_API_URL.format(model=quote(self.model, safe="")),
+            headers={
+                "x-goog-api-key": self.api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "systemInstruction": {
+                    "parts": [{"text": GEMINI_SYSTEM_PROMPT}],
+                },
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": (
+                                    f"Câu hỏi: {question}\n"
+                                    f"Dữ liệu hệ thống: "
+                                    f"{json.dumps(context, ensure_ascii=False)}"
+                                ),
+                            },
+                        ],
+                    },
+                ],
+                "generationConfig": {"temperature": 0},
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        try:
+            candidates = response.json().get("candidates", [])
+            parts = candidates[0]["content"]["parts"]
+            content = "\n".join(
+                part["text"] for part in parts if isinstance(part.get("text"), str)
+            ).strip()
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as error:
+            raise RuntimeError("Gemini trả về phản hồi không đúng định dạng.") from error
+        if not content:
+            raise RuntimeError("Gemini trả về phản hồi rỗng.")
+        return content
+
+
 class NotConfiguredAiProvider:
     def answer(self, question: str, context: dict[str, Any]) -> str:
         raise RuntimeError(
@@ -35,10 +107,33 @@ class NotConfiguredAiProvider:
 class OpenAiCompatibleProvider:
     """Provider for OpenAI-compatible chat completion APIs."""
 
-    def __init__(self, base_url: str, api_key: str, model: str):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        provider_name: str = "openai_compatible",
+    ):
+        parsed_url = urlsplit(base_url)
+        is_local_http = (
+            parsed_url.scheme == "http"
+            and parsed_url.hostname in {"localhost", "127.0.0.1", "::1"}
+        )
+        if (
+            not parsed_url.hostname
+            or (parsed_url.scheme != "https" and not is_local_http)
+            or parsed_url.username
+            or parsed_url.password
+            or parsed_url.query
+            or parsed_url.fragment
+        ):
+            raise ValueError(
+                "AI_BASE_URL phải là HTTPS hợp lệ; chỉ cho phép HTTP với máy chủ loopback."
+            )
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
+        self.provider_name = provider_name
 
     def answer(self, question: str, context: dict[str, Any]) -> str:
         response = httpx.post(
@@ -75,13 +170,26 @@ class OpenAiCompatibleProvider:
         return content.strip()
 
 
-def get_configured_provider() -> OpenAiCompatibleProvider | None:
-    base_url = os.getenv("AI_BASE_URL", "").strip()
+def get_configured_provider() -> OpenAiCompatibleProvider | GeminiProvider | None:
+    provider_name = (
+        os.getenv("AI_PROVIDER", "openai_compatible").strip().lower()
+        or "openai_compatible"
+    )
     api_key = os.getenv("AI_API_KEY", "").strip()
-    model = os.getenv("AI_MODEL", "").strip()
-    if not base_url or not api_key or not model:
+    if not api_key:
         return None
-    return OpenAiCompatibleProvider(base_url, api_key, model)
+    if provider_name == "gemini":
+        model = os.getenv("AI_MODEL", "").strip() or "gemini-3.8-flash"
+        return GeminiProvider(api_key, model)
+    if provider_name not in COMPATIBLE_AI_PROVIDERS:
+        raise ValueError(
+            "AI_PROVIDER phải là gemini, openai, openai_compatible hoặc ollama."
+        )
+    base_url = os.getenv("AI_BASE_URL", "").strip()
+    model = os.getenv("AI_MODEL", "").strip()
+    if not base_url or not model:
+        return None
+    return OpenAiCompatibleProvider(base_url, api_key, model, provider_name)
 
 
 def build_database_context(db: Session) -> dict[str, Any]:
@@ -120,35 +228,56 @@ def answer_question(db: Session, question: str) -> dict[str, Any]:
         if provider is None:
             raise
         context = build_database_context(db)
+        try:
+            answer = provider.answer(question, context)
+        except (httpx.HTTPError, RuntimeError):
+            return {
+                "intent": "model_analysis",
+                "answer": (
+                    "Gemini không kết nối được hoặc trả về dữ liệu không hợp lệ. "
+                    "Vui lòng thử lại sau."
+                ),
+                "data": context,
+                "source": "deterministic_fallback",
+            }
         return {
             "intent": "model_analysis",
-            "answer": provider.answer(question, context),
+            "answer": answer,
             "data": context,
-            "source": "configured_ai_model",
+            "source": provider.provider_name,
+            "model": provider.model,
         }
 
-    if provider is None or result["intent"] != "staffing_recommendation":
-        return result
+    if provider is None:
+        return {**result, "source": "database_rules"}
 
-    context = {
-        "staffing_estimate": result["data"],
-        "rule_based_answer": result["answer"],
-    }
+    if result["intent"] == "staffing_recommendation":
+        context = {
+            "staffing_estimate": result["data"],
+            "reference_answer": result["answer"],
+        }
+    else:
+        context = {
+            "intent": result["intent"],
+            "data": result["data"],
+            "reference_answer": result["answer"],
+        }
     try:
         model_answer = provider.answer(question, context)
-    except (httpx.HTTPError, RuntimeError, KeyError, TypeError):
+    except (httpx.HTTPError, RuntimeError):
         return {
             **result,
             "answer": (
-                f"{result['answer']} Mô hình AI hiện không kết nối được; "
-                "đang hiển thị ước tính theo quy tắc."
+                f"{result['answer']} Gemini hiện không kết nối được; "
+                "đây là kết quả tính từ dữ liệu hệ thống."
             ),
             "source": "deterministic_fallback",
         }
     return {
         **result,
         "answer": model_answer,
-        "source": "configured_ai_model_with_rule_based_estimate",
+        "source": provider.provider_name,
+        "model": provider.model,
     }
 
 
@@ -422,7 +551,7 @@ def get_capabilities() -> list[dict[str, Any]]:
         AiCapability(
             "chatbot",
             "configured" if provider else "deterministic",
-            "openai_compatible" if provider else "rules",
+            provider.provider_name if provider else "rules",
             None if provider else "Câu hỏi nghiệp vụ được xử lý bằng quy tắc và dữ liệu CSDL.",
         ).__dict__,
         AiCapability(
@@ -434,7 +563,7 @@ def get_capabilities() -> list[dict[str, Any]]:
         AiCapability(
             "staffing_recommendation",
             "configured_ai_with_rule_based_estimate" if provider else "deterministic",
-            "openai_compatible" if provider else "rules",
+            provider.provider_name if provider else "rules",
             "Model chỉ diễn giải đề xuất; số nhân sự được tính từ lưu lượng và giả định cấu hình.",
         ).__dict__,
         AiCapability(

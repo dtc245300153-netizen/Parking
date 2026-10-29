@@ -1,11 +1,16 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+import pytest
+
 from app.models import ParkingSlot, ParkingTicket, Vehicle
 from app.services.ai import (
+    GeminiProvider,
+    OpenAiCompatibleProvider,
     answer_parking_question,
     answer_question,
     estimate_staff_count,
+    get_configured_provider,
     get_capabilities,
     traffic_metrics,
 )
@@ -124,8 +129,139 @@ def test_capabilities_do_not_claim_forecast_or_plate_recognition(monkeypatch):
     assert capabilities["license_plate_recognition"]["status"] == "not_implemented"
 
 
+def test_openai_compatible_provider_sends_key_and_parking_context_server_side(monkeypatch):
+    api_key = "test-api-key-never-returned"
+    monkeypatch.setenv("AI_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("AI_BASE_URL", "https://ai.example/v1/")
+    monkeypatch.setenv("AI_API_KEY", api_key)
+    monkeypatch.setenv("AI_MODEL", "parking-model")
+    captured = {}
+
+    class _Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": "Còn 4 chỗ trống."}}]}
+
+    def fake_post(url, **kwargs):
+        captured["url"] = url
+        captured.update(kwargs)
+        return _Response()
+
+    monkeypatch.setattr("app.services.ai.httpx.post", fake_post)
+    provider = get_configured_provider()
+
+    assert provider is not None
+    assert provider.provider_name == "openai_compatible"
+    answer = provider.answer("Còn bao nhiêu chỗ?", {"empty_slots": 4})
+
+    assert answer == "Còn 4 chỗ trống."
+    assert captured["url"] == "https://ai.example/v1/chat/completions"
+    assert captured["headers"]["Authorization"] == f"Bearer {api_key}"
+    assert captured["json"]["model"] == "parking-model"
+    assert captured["json"]["messages"][0]["role"] == "system"
+    assert "empty_slots" in captured["json"]["messages"][1]["content"]
+    assert api_key not in answer
+    assert api_key not in repr(get_capabilities())
+    capabilities = {item["name"]: item for item in get_capabilities()}
+    assert capabilities["chatbot"]["provider"] == "openai_compatible"
+
+
+def test_gemini_provider_uses_native_api_and_keeps_key_server_side(monkeypatch):
+    api_key = "gemini-test-key"
+    monkeypatch.setenv("AI_PROVIDER", "gemini")
+    monkeypatch.setenv("AI_API_KEY", api_key)
+    monkeypatch.setenv("AI_MODEL", "gemini-3.8-flash")
+    captured = {}
+
+    class _Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [{"text": "Gemini đang hoạt động."}],
+                        },
+                    },
+                ],
+            }
+
+    def fake_post(url, **kwargs):
+        captured["url"] = url
+        captured.update(kwargs)
+        return _Response()
+
+    monkeypatch.setattr("app.services.ai.httpx.post", fake_post)
+    provider = get_configured_provider()
+
+    assert isinstance(provider, GeminiProvider)
+    assert provider is not None
+    assert provider.answer("Kiểm tra", {"slots": 4}) == "Gemini đang hoạt động."
+    assert (
+        captured["url"]
+        == "https://generativelanguage.googleapis.com/v1beta/models/"
+        "gemini-3.8-flash:generateContent"
+    )
+    assert captured["headers"]["x-goog-api-key"] == api_key
+    assert api_key not in captured["url"]
+    assert captured["json"]["systemInstruction"]["parts"]
+    assert captured["json"]["contents"][0]["role"] == "user"
+    assert "slots" in captured["json"]["contents"][0]["parts"][0]["text"]
+
+
+def test_gemini_provider_rejects_malformed_response(monkeypatch):
+    class _Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"candidates": []}
+
+    monkeypatch.setattr(
+        "app.services.ai.httpx.post",
+        lambda *args, **kwargs: _Response(),
+    )
+
+    with pytest.raises(RuntimeError, match="không đúng định dạng"):
+        GeminiProvider("test-key", "gemini-2.5-flash").answer("hello", {})
+
+
+def test_ai_provider_requires_https_except_for_loopback_ollama():
+    with pytest.raises(ValueError, match="HTTPS"):
+        OpenAiCompatibleProvider(
+            "http://ai.example/v1",
+            "test-key",
+            "parking-model",
+        )
+
+    provider = OpenAiCompatibleProvider(
+        "http://localhost:11434/v1",
+        "ollama",
+        "llama3",
+    )
+
+    assert provider.base_url == "http://localhost:11434/v1"
+
+
+def test_unknown_ai_provider_configuration_is_rejected(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "unsupported-provider")
+    monkeypatch.setenv("AI_BASE_URL", "https://ai.example/v1")
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    monkeypatch.setenv("AI_MODEL", "parking-model")
+
+    with pytest.raises(ValueError, match="AI_PROVIDER"):
+        get_configured_provider()
+
+
 def test_staffing_uses_configured_provider_with_authoritative_estimate(monkeypatch):
     class _Provider:
+        provider_name = "gemini"
+        model = "gemini-test"
+
         def answer(self, question, context):
             assert context["staffing_estimate"]["recommended_staff"] == 3
             return "Model diễn giải đề xuất 3 nhân viên theo dữ liệu được cung cấp."
@@ -136,9 +272,30 @@ def test_staffing_uses_configured_provider_with_authoritative_estimate(monkeypat
 
     result = answer_question(_FakeDb(tickets), "Gợi ý bố trí nhân sự tuần này")
 
-    assert result["source"] == "configured_ai_model_with_rule_based_estimate"
+    assert result["source"] == "gemini"
+    assert result["model"] == "gemini-test"
     assert "3 nhân viên" in result["answer"]
     assert result["data"]["recommended_staff"] == 3
+
+
+def test_configured_gemini_handles_supported_parking_questions(monkeypatch):
+    class _Provider:
+        provider_name = "gemini"
+        model = "gemini-test"
+
+        def answer(self, question, context):
+            assert question == "Bãi còn bao nhiêu chỗ?"
+            assert context["intent"] == "available_slots"
+            assert context["data"] == {"available": 0, "total": 0}
+            return "Gemini: bãi hiện chưa có vị trí."
+
+    monkeypatch.setattr("app.services.ai.get_configured_provider", lambda: _Provider())
+
+    result = answer_question(_FakeDb([]), "Bãi còn bao nhiêu chỗ?")
+
+    assert result["answer"] == "Gemini: bãi hiện chưa có vị trí."
+    assert result["source"] == "gemini"
+    assert result["model"] == "gemini-test"
 
 
 def test_staffing_falls_back_when_configured_provider_fails(monkeypatch):

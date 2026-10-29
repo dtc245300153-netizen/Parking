@@ -89,7 +89,7 @@ Giao diện đã được kiểm tra bằng browser flow đăng nhập, chuyển
 ## Lưu ý triển khai
 
 - Dùng `SECRET_KEY` riêng, HTTPS, CORS allowlist và database PostgreSQL khi triển khai production.
-- Để kết nối model OpenAI-compatible thật, cấu hình `AI_BASE_URL`, `AI_API_KEY` và `AI_MODEL` trong `.env`. Backend sẽ đưa context database vào model qua `app/services/ai.py`.
-- Khi ba biến AI chưa có, assistant dùng data assistant deterministic. Khi provider có cấu hình, model có thể diễn giải gợi ý nhân sự nhưng không được thay đổi số nhân sự do backend tính.
+- Parking chat uses the official Gemini `generateContent` API. Set `AI_PROVIDER=gemini`, `AI_API_KEY`, and `AI_MODEL=gemini-3.8-flash` in `backend/.env`; `AI_BASE_URL` is not required. The key stays server-side in the `x-goog-api-key` header and must never be exposed in frontend code or committed files.
+- Run `cd backend; python check_gemini.py` for a real model request. Successful chat answers display `Gemini (model-name)`; fallback answers are labeled as system data.
 - QR image renderer, reservation, số điện thoại, tầng và loại vị trí chưa được giả lập; các boundary/interface đã được chuẩn bị trong code và docs.
 - Chưa có gói vé tháng hoặc quy tắc hiệu lực/thanh toán định kỳ; demo hiện tính phí theo thời lượng gửi và bảng giá hiện tại.

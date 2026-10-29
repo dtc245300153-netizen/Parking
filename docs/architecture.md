@@ -39,7 +39,7 @@ flowchart TD
     Response --> Chat
 ```
 
-Các câu hỏi nghiệp vụ được trả lời từ dữ liệu CSDL, gồm lưu lượng theo ngày/tuần, giờ cao điểm theo ngày-giờ Việt Nam và ước tính nhân sự. Ước tính mặc định dùng giả định 10 lượt xe/nhân viên/giờ, có thể chỉnh qua `AI_ARRIVALS_PER_EMPLOYEE_PER_HOUR`; đây không phải dự báo hoặc lịch phân ca. Khi có đủ `AI_BASE_URL`, `AI_API_KEY` và `AI_MODEL`, provider xử lý câu hỏi chưa có intent deterministic và diễn giải gợi ý nhân sự dựa trên số liệu backend đã tính. Số nhân sự do backend tính vẫn là dữ liệu có thẩm quyền; nếu provider lỗi, assistant trả fallback deterministic và thông báo trạng thái. Không có số liệu nào được giả lập khi CSDL không có dữ liệu.
+Parking chat calls the native Gemini `generateContent` API for each question when `AI_PROVIDER=gemini`, `AI_API_KEY`, and `AI_MODEL` are configured. The key remains on the backend and is sent in the `x-goog-api-key` header, never in the URL or API response. Gemini receives database-backed business data; for supported factual questions, backend-calculated values are included as the source of truth. Staffing remains a transparent heuristic, not a forecast or shift scheduler. Provider errors are identified in the response and UI, which label successful answers with source `gemini` and the model name. `backend/check_gemini.py` verifies a live connection; mocked tests do not replace this check.
 
 - **Domain API:** existing areas, slots, vehicles, tickets and prices remain the source of truth.
 - **Dashboard:** `/api/dashboard/summary` and `/api/revenue` calculate metrics from database rows. The browser refreshes the summary periodically so the first real-time version does not expose a token in an SSE query string.
@@ -48,7 +48,7 @@ Các câu hỏi nghiệp vụ được trả lời từ dữ liệu CSDL, gồm 
 - **Audit:** `/api/audit-logs` reads `activity_logs`; ticket entry and exit currently create audit records.
 - **Notifications:** `/api/notifications` reads database-backed notifications; ticket entry and exit create notifications from real events.
 - **QR:** `/api/tickets/{ticket_id}/qr` returns a versioned payload for a QR renderer. No fake image is returned when no QR renderer is configured.
-- **AI:** `/api/ai/assistant` handles supported factual questions and traffic summaries from current database data. Staffing is a configurable heuristic; a configured provider may interpret it without changing the calculated count. Provider failures fall back to the rule-based estimate with an explicit notice. `/api/ai/capabilities` reports chatbot/staffing status separately from unimplemented occupancy forecasting and license-plate recognition. `/api/ai/query` returns `501` until a provider is configured.
+- **AI:** `/api/ai/assistant` uses Gemini when configured and returns an explicit source/model label; otherwise it answers supported questions with database rules. Staffing remains a transparent heuristic, and model failures return an explicit fallback. `/api/ai/capabilities` reports chatbot/staffing status separately from unimplemented occupancy forecasting and license-plate recognition. `backend/check_gemini.py` is the live connection smoke test.
 - **Backup:** `backup_database.py` and `restore_database.py` use SQLite's online backup API. Restore should be run with the application stopped and a verified backup path.
 
 ## Production migration path

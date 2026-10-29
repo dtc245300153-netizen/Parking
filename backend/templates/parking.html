@@ -2590,18 +2590,18 @@
       onclick="toggleAiChat()"
       aria-controls="aiPanel"
       aria-expanded="false">
-      🤖 Parking
+      🤖 Gemini Parking
     </button>
 
-    <section class="ai-panel" id="aiPanel" aria-label="Parking Assistant">
+    <section class="ai-panel" id="aiPanel" aria-label="Gemini Parking Assistant">
       <header class="ai-header">
-        <strong>🤖 Parking</strong>
+        <strong>🤖 Gemini Parking</strong>
         <button class="ai-close" type="button" onclick="toggleAiChat()" aria-label="Đóng trợ lý">×</button>
       </header>
 
       <div class="ai-messages" id="aiMessages" role="log" aria-live="polite">
         <div class="ai-message assistant">
-          Xin chào! Tôi có thể giúp bạn phân tích dữ liệu bãi đỗ hiện tại.
+          Xin chào! Tôi có thể giúp bạn phân tích dữ liệu bãi đỗ. Câu trả lời sẽ ghi rõ Gemini hay dữ liệu hệ thống.
         </div>
       </div>
 
@@ -2803,7 +2803,7 @@
 
               input.value = "";
               appendAiMessage("user", text);
-              const loading = appendAiMessage("assistant", "Đang đọc dữ liệu bãi đỗ...");
+              const loading = appendAiMessage("assistant", "Đang xử lý câu hỏi...");
 
               try {
                 const result = await api("/api/ai/assistant", {
@@ -2813,7 +2813,12 @@
                   },
                   body: JSON.stringify({ question: text }),
                 });
-                loading.textContent = result.answer || "Không có dữ liệu trả lời.";
+                const sourceLabel = result.source === "gemini"
+                  ? `Gemini${result.model ? ` (${result.model})` : ""}`
+                  : result.source === "deterministic_fallback"
+                    ? "Dữ liệu hệ thống (Gemini không khả dụng)"
+                    : "Dữ liệu hệ thống";
+                loading.textContent = `${sourceLabel}: ${result.answer || "Không có dữ liệu trả lời."}`;
               } catch (error) {
                 loading.textContent = error.message || "Không thể truy vấn dữ liệu bãi đỗ.";
               }
