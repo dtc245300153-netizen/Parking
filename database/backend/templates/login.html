@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Parking - Đăng nhập</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #172554, #2563eb);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .login-box {
+        width: 400px;
+        background: white;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+      }
+
+      .logo {
+        text-align: center;
+        font-size: 30px;
+        font-weight: bold;
+        color: #172554;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #6b7280;
+        margin-bottom: 30px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #374151;
+      }
+
+      input {
+        width: 100%;
+        height: 46px;
+        padding: 0 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 15px;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: #2563eb;
+      }
+
+      button {
+        width: 100%;
+        height: 46px;
+        border: none;
+        border-radius: 8px;
+        background: #2563eb;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #1d4ed8;
+      }
+
+      button:disabled {
+        background: #93c5fd;
+        cursor: not-allowed;
+      }
+
+      #message {
+        min-height: 24px;
+        margin-top: 18px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      .footer {
+        margin-top: 25px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-box">
+      <div class="logo">🅿️ PARKING</div>
+
+      <div class="subtitle">Hệ thống quản lý bãi đỗ xe</div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username"> Tài khoản </label>
+
+          <input
+            id="username"
+            type="text"
+            placeholder="Nhập tài khoản"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password"> Mật khẩu </label>
+
+          <input
+            id="password"
+            type="password"
+            placeholder="Nhập mật khẩu"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button id="loginButton" type="submit">🔐 Đăng nhập</button>
+      </form>
+
+      <div id="message"></div>
+
+      <div class="footer">Parking Management System</div>
+    </div>
+
+    <script>
+      const loginForm = document.getElementById("loginForm");
+
+      const usernameInput = document.getElementById("username");
+
+      const passwordInput = document.getElementById("password");
+
+      const loginButton = document.getElementById("loginButton");
+
+      const message = document.getElementById("message");
+
+      loginForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const username = usernameInput.value.trim();
+
+        const password = passwordInput.value;
+
+        if (!username || !password) {
+          message.textContent = "❌ Vui lòng nhập đầy đủ tài khoản và mật khẩu";
+
+          message.style.color = "#dc2626";
+
+          return;
+        }
+
+        loginButton.disabled = true;
+
+        loginButton.textContent = "⏳ Đang đăng nhập...";
+
+        message.textContent = "";
+
+        try {
+          /*
+           * OAuth2PasswordRequestForm của FastAPI
+           * yêu cầu application/x-www-form-urlencoded
+           */
+
+          const formData = new URLSearchParams();
+
+          formData.append("username", username);
+
+          formData.append("password", password);
+
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+
+            body: formData.toString(),
+          });
+
+          let data = {};
+
+          try {
+            data = await response.json();
+          } catch (error) {
+            data = {};
+          }
+
+          console.log("Login response:", response.status, data);
+
+          /*
+           * Đăng nhập sai
+           */
+
+          if (!response.ok) {
+            let errorMessage = "Sai tài khoản hoặc mật khẩu";
+
+            if (typeof data.detail === "string") {
+              errorMessage = data.detail;
+            }
+
+            message.textContent = "❌ " + errorMessage;
+
+            message.style.color = "#dc2626";
+
+            loginButton.disabled = false;
+
+            loginButton.textContent = "🔐 Đăng nhập";
+
+            return;
+          }
+
+          /*
+           * Kiểm tra token
+           */
+
+          if (!data.access_token) {
+            message.textContent = "❌ Máy chủ không trả về access token";
+
+            message.style.color = "#dc2626";
+
+            loginButton.disabled = false;
+
+            loginButton.textContent = "🔐 Đăng nhập";
+
+            return;
+          }
+
+          /*
+           * Lưu thông tin đăng nhập
+           */
+
+          localStorage.setItem("access_token", data.access_token);
+
+          localStorage.setItem("username", username);
+
+          /*
+           * Đăng nhập thành công
+           */
+
+          message.textContent = "✅ Đăng nhập thành công!";
+
+          message.style.color = "#16a34a";
+
+          /*
+           * Chuyển sang giao diện
+           * bãi đỗ xe
+           */
+
+          setTimeout(function () {
+            window.location.href = "/parking";
+          }, 500);
+        } catch (error) {
+          console.error("Login error:", error);
+
+          message.textContent = "❌ Không thể kết nối tới máy chủ";
+
+          message.style.color = "#dc2626";
+
+          loginButton.disabled = false;
+
+          loginButton.textContent = "🔐 Đăng nhập";
+        }
+      });
+    </script>
+  </body>
+</html>

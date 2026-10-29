@@ -1,0 +1,2432 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Parking - Quản lý bãi đỗ xe</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background: #f1f5f9;
+        color: #1e293b;
+      }
+
+      button,
+      input,
+      select {
+        font-family: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      /* ================= HEADER ================= */
+
+      .header {
+        height: 68px;
+        background: #172554;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .logo {
+        font-size: 21px;
+        font-weight: bold;
+      }
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logout {
+        border: 0;
+        background: #dc2626;
+        color: white;
+        padding: 9px 14px;
+        border-radius: 7px;
+      }
+
+      .logout:hover {
+        background: #b91c1c;
+      }
+
+      /* ================= LAYOUT ================= */
+
+      .layout {
+        display: flex;
+        min-height: calc(100vh - 68px);
+      }
+
+      .sidebar {
+        width: 235px;
+        background: white;
+        border-right: 1px solid #e2e8f0;
+        padding: 18px 12px;
+        flex-shrink: 0;
+      }
+
+      .menu-title {
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: bold;
+        margin: 15px 12px 8px;
+      }
+
+      .menu-item {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: #475569;
+        text-align: left;
+        padding: 12px 14px;
+        margin-bottom: 5px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .menu-item:hover {
+        background: #eff6ff;
+        color: #2563eb;
+      }
+
+      .menu-item.active {
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-weight: bold;
+      }
+
+      /* ================= CONTENT ================= */
+
+      .content {
+        flex: 1;
+        padding: 28px;
+        min-width: 0;
+      }
+
+      .page-title {
+        font-size: 27px;
+        margin-bottom: 5px;
+      }
+
+      .subtitle {
+        color: #64748b;
+        margin-bottom: 24px;
+      }
+
+      /* ================= STATS ================= */
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .stat-label {
+        color: #64748b;
+        font-size: 13px;
+      }
+
+      .stat-number {
+        font-size: 29px;
+        font-weight: bold;
+        margin-top: 8px;
+      }
+
+      /* ================= PANEL ================= */
+
+      .panel {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 22px;
+        margin-bottom: 20px;
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .panel-title {
+        font-size: 19px;
+        font-weight: bold;
+      }
+
+      /* ================= BUTTON ================= */
+
+      .btn {
+        border: 0;
+        border-radius: 7px;
+        padding: 9px 14px;
+        font-weight: bold;
+      }
+
+      .btn-primary {
+        background: #2563eb;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #1d4ed8;
+      }
+
+      .btn-success {
+        background: #16a34a;
+        color: white;
+      }
+
+      .btn-warning {
+        background: #f59e0b;
+        color: white;
+      }
+
+      .btn-danger {
+        background: #dc2626;
+        color: white;
+      }
+
+      .btn-gray {
+        background: #e2e8f0;
+        color: #334155;
+      }
+
+      .btn-small {
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+
+      /* ================= TABLE ================= */
+
+      .table-wrapper {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+        text-align: left;
+        padding: 13px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      td {
+        padding: 13px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 14px;
+      }
+
+      tr:hover td {
+        background: #f8fafc;
+      }
+
+      /* ================= PARKING ================= */
+
+      .area {
+        margin-bottom: 28px;
+      }
+
+      .area-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 13px;
+      }
+
+      .area-name {
+        font-size: 17px;
+        font-weight: bold;
+      }
+
+      .area-description {
+        color: #64748b;
+        font-size: 13px;
+        margin-top: 3px;
+      }
+
+      .parking-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+      }
+
+      .slot {
+        min-height: 105px;
+        border-radius: 10px;
+        padding: 14px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: 0.15s;
+      }
+
+      .slot:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+      }
+
+      .slot.available {
+        background: #16a34a;
+      }
+
+      .slot.occupied {
+        background: #dc2626;
+      }
+
+      .slot.reserved {
+        background: #d97706;
+      }
+
+      .slot-code {
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      .slot-status {
+        font-size: 13px;
+      }
+
+      .slot-actions {
+        display: flex;
+        gap: 5px;
+      }
+
+      .slot-actions button {
+        border: 0;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 5px;
+        padding: 5px 7px;
+        font-size: 11px;
+      }
+
+      /* ================= BADGE ================= */
+
+      .badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .badge-green {
+        background: #dcfce7;
+        color: #15803d;
+      }
+
+      .badge-red {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .badge-yellow {
+        background: #fef3c7;
+        color: #b45309;
+      }
+
+      /* ================= MODAL ================= */
+
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 15px;
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-box {
+        width: 450px;
+        max-width: 100%;
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 7px;
+        font-weight: bold;
+        font-size: 14px;
+      }
+
+      .form-control {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        outline: none;
+      }
+
+      .form-control:focus {
+        border-color: #2563eb;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      /* ================= EMPTY ================= */
+
+      .empty {
+        text-align: center;
+        padding: 40px 20px;
+        color: #64748b;
+      }
+
+      /* ================= RESPONSIVE ================= */
+
+      @media (max-width: 1000px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .parking-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      @media (max-width: 700px) {
+        .sidebar {
+          display: none;
+        }
+
+        .content {
+          padding: 15px;
+        }
+
+        .stats {
+          grid-template-columns: 1fr;
+        }
+
+        .parking-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .header {
+          padding: 0 15px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="header">
+      <div class="logo">🅿️ PARKING</div>
+
+      <div class="user-info">
+        👤 <span id="username">Quản trị viên</span>
+
+        <button class="logout" onclick="logout()">Đăng xuất</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="menu-title">QUẢN LÝ</div>
+
+        <button
+          class="menu-item active"
+          id="menuParking"
+          onclick="showParking()"
+        >
+          🅿️ Bãi đỗ xe
+        </button>
+
+        <button class="menu-item" id="menuVehicles" onclick="showVehicles()">
+          🚗 Phương tiện
+        </button>
+
+        <button class="menu-item" id="menuTickets" onclick="showTickets()">
+          🎫 Vé xe
+        </button>
+
+        <button class="menu-item" id="menuPrices" onclick="showPrices()">
+          💵 Bảng giá
+        </button>
+
+        <button class="menu-item" id="menuRevenue" onclick="showRevenue()">
+          💰 Doanh thu
+        </button>
+
+        <div class="menu-title">PHÂN TÍCH</div>
+
+        <button
+          class="menu-item"
+          id="menuStatistics"
+          onclick="showStatistics()"
+        >
+          📊 Thống kê
+        </button>
+      </aside>
+
+      <main class="content">
+        <h1 class="page-title" id="pageTitle">Quản lý bãi đỗ xe</h1>
+
+        <p class="subtitle" id="pageSubtitle">Theo dõi tình trạng chỗ đỗ</p>
+
+        <section class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Tổng vị trí</div>
+            <div class="stat-number" id="totalSlots">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Chỗ trống</div>
+            <div class="stat-number" id="availableSlots">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Đang đỗ</div>
+            <div class="stat-number" id="occupiedSlots">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Đã giữ</div>
+            <div class="stat-number" id="reservedSlots">0</div>
+          </div>
+        </section>
+
+        <div id="mainContent"></div>
+      </main>
+    </div>
+
+    <div class="modal" id="modal">
+      <div class="modal-box">
+        <div class="modal-title" id="modalTitle">Thao tác</div>
+
+        <div id="modalBody"></div>
+
+        <div class="modal-actions">
+          <button class="btn btn-gray" onclick="closeModal()">Hủy</button>
+
+          <button
+            class="btn btn-primary"
+            id="modalSaveButton"
+            onclick="saveModal()"
+          >
+            Lưu
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let modalMode = null;
+      let selectedId = null;
+      let selectedAreaId = null;
+
+      const token = () => localStorage.getItem("access_token");
+
+      function apiError(data) {
+        if (!data) {
+          return "Lỗi không xác định";
+        }
+
+        if (typeof data === "string") {
+          return data;
+        }
+
+        if (typeof data.detail === "string") {
+          return data.detail;
+        }
+
+        if (Array.isArray(data.detail)) {
+          return data.detail
+            .map((item) => {
+              if (typeof item === "string") {
+                return item;
+              }
+
+              if (item.msg) {
+                return item.msg;
+              }
+
+              return JSON.stringify(item);
+            })
+            .join("\n");
+        }
+
+        if (data.message) {
+          return data.message;
+        }
+
+        return JSON.stringify(data);
+      }
+
+      async function api(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+
+          headers: {
+            ...(options.headers || {}),
+            Authorization: "Bearer " + token(),
+          },
+        });
+
+        let data = {};
+
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (response.status === 401) {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("username");
+
+          window.location.href = "/login";
+
+          throw new Error("Phiên đăng nhập đã hết hạn");
+        }
+
+        if (!response.ok) {
+          throw new Error(apiError(data));
+        }
+
+        return data;
+      }
+
+      function escapeHtml(value) {
+        const div = document.createElement("div");
+
+        div.textContent = value ?? "";
+
+        return div.innerHTML;
+      }
+
+      function setMenu(id) {
+        document
+          .querySelectorAll(".menu-item")
+          .forEach((x) => x.classList.remove("active"));
+
+        if (id) {
+          document.getElementById(id)?.classList.add("active");
+        }
+      }
+
+      function openModal(title, body, mode) {
+        modalMode = mode;
+
+        document.getElementById("modalTitle").textContent = title;
+
+        document.getElementById("modalBody").innerHTML = body;
+
+        document.getElementById("modal").classList.add("show");
+      }
+
+      function closeModal() {
+        document.getElementById("modal").classList.remove("show");
+
+        modalMode = null;
+        selectedId = null;
+        selectedAreaId = null;
+      }
+
+      async function showParking() {
+        setMenu("menuParking");
+
+        document.getElementById("pageTitle").textContent = "Quản lý bãi đỗ xe";
+
+        document.getElementById("pageSubtitle").textContent =
+          "Quản lý khu vực, vị trí và trạng thái";
+
+        await loadParking();
+      }
+
+      async function loadParking() {
+        const content = document.getElementById("mainContent");
+
+        content.innerHTML = `
+          <div class="panel">
+            <div class="empty">
+              ⏳ Đang tải bãi đỗ...
+            </div>
+          </div>
+        `;
+
+        try {
+          const areas = await api("/api/areas/");
+
+          let html = `
+            <div class="panel">
+
+              <div class="panel-header">
+
+                <div class="panel-title">
+                  🅿️ Sơ đồ bãi đỗ
+                </div>
+
+                <button
+                  class="btn btn-primary"
+                  onclick="addArea()">
+                  ➕ Thêm khu vực
+                </button>
+
+              </div>
+          `;
+
+          let total = 0;
+          let available = 0;
+          let occupied = 0;
+          let reserved = 0;
+
+          for (const area of areas) {
+            let slots = [];
+
+            try {
+              slots = await api(`/api/areas/${area.id}/slots`);
+            } catch (error) {
+              console.error(error);
+            }
+
+            total += slots.length;
+
+            slots.forEach((slot) => {
+              if (slot.status === "available") available++;
+
+              if (slot.status === "occupied") occupied++;
+
+              if (slot.status === "reserved") reserved++;
+            });
+
+            html += `
+              <div class="area">
+
+                <div class="area-header">
+
+                  <div>
+
+                    <div class="area-name">
+                      📍 ${escapeHtml(area.name)}
+                    </div>
+
+                    <div class="area-description">
+                      ${escapeHtml(area.description || "")}
+                    </div>
+
+                  </div>
+
+                  <div>
+
+                    <button
+                      class="btn btn-warning btn-small"
+                      onclick='editArea(${JSON.stringify(area)})'>
+                      ✏️ Sửa
+                    </button>
+
+                    <button
+                      class="btn btn-danger btn-small"
+                      onclick="deleteArea(${area.id})">
+                      🗑️ Xóa
+                    </button>
+
+                    <button
+                      class="btn btn-primary btn-small"
+                      onclick="addSlot(${area.id})">
+                      ➕ Vị trí
+                    </button>
+
+                  </div>
+
+                </div>
+
+                <div class="parking-grid">
+            `;
+
+            if (!slots.length) {
+              html += `
+                <div class="empty">
+                  Chưa có vị trí
+                </div>
+              `;
+            } else {
+              slots.forEach((slot) => {
+                const statusText =
+                  slot.status === "available"
+                    ? "Trống"
+                    : slot.status === "occupied"
+                      ? "Đang đỗ"
+                      : "Đã giữ";
+
+                html += `
+                  <div class="slot ${slot.status}">
+
+                    <div>
+
+                      <div class="slot-code">
+                        ${escapeHtml(slot.slot_code)}
+                      </div>
+
+                      <div class="slot-status">
+                        ${statusText}
+                      </div>
+
+                    </div>
+
+                    <div class="slot-actions">
+
+                      <button
+                        onclick='editSlot(${JSON.stringify(slot)})'>
+                        ✏️
+                      </button>
+
+                      <button
+                        onclick="deleteSlot(${slot.id})">
+                        🗑️
+                      </button>
+
+                      <button
+                        onclick='changeSlotStatus(${JSON.stringify(slot)})'>
+                        🔄
+                      </button>
+
+                    </div>
+
+                  </div>
+                `;
+              });
+            }
+
+            html += `
+                </div>
+              </div>
+            `;
+          }
+
+          if (!areas.length) {
+            html += `
+              <div class="empty">
+                Chưa có khu vực.
+                Hãy bấm "Thêm khu vực".
+              </div>
+            `;
+          }
+
+          html += `
+            </div>
+          `;
+
+          content.innerHTML = html;
+
+          updateStats(total, available, occupied, reserved);
+        } catch (error) {
+          content.innerHTML = `
+            <div class="panel">
+              <div class="empty">
+                ❌ ${escapeHtml(error.message)}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      function addArea() {
+        openModal(
+          "➕ Thêm khu vực",
+          `
+            <div class="form-group">
+
+              <label>Tên khu vực</label>
+
+              <input
+                id="areaName"
+                class="form-control"
+                placeholder="VD: Khu A">
+
+            </div>
+
+            <div class="form-group">
+
+              <label>Mô tả</label>
+
+              <input
+                id="areaDescription"
+                class="form-control"
+                placeholder="Mô tả khu vực">
+
+            </div>
+          `,
+          "addArea",
+        );
+      }
+
+      function editArea(area) {
+        selectedId = area.id;
+
+        openModal(
+          "✏️ Sửa khu vực",
+          `
+            <div class="form-group">
+
+              <label>Tên khu vực</label>
+
+              <input
+                id="areaName"
+                class="form-control"
+                value="${escapeHtml(area.name)}">
+
+            </div>
+
+            <div class="form-group">
+
+              <label>Mô tả</label>
+
+              <input
+                id="areaDescription"
+                class="form-control"
+                value="${escapeHtml(area.description || "")}">
+
+            </div>
+          `,
+          "editArea",
+        );
+      }
+
+      async function deleteArea(id) {
+        if (
+          !confirm("Xóa khu vực sẽ xóa các vị trí bên trong. Bạn chắc chắn?")
+        ) {
+          return;
+        }
+
+        try {
+          await api(`/api/areas/${id}`, {
+            method: "DELETE",
+          });
+
+          alert("✅ Đã xóa khu vực");
+
+          loadParking();
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+
+      function addSlot(areaId) {
+        selectedAreaId = areaId;
+
+        openModal(
+          "➕ Thêm vị trí",
+          `
+            <div class="form-group">
+
+              <label>Mã vị trí</label>
+
+              <input
+                id="slotCode"
+                class="form-control"
+                placeholder="VD: A01">
+
+            </div>
+          `,
+          "addSlot",
+        );
+      }
+
+      function editSlot(slot) {
+        selectedId = slot.id;
+
+        openModal(
+          "✏️ Sửa vị trí",
+          `
+            <div class="form-group">
+
+              <label>Mã vị trí</label>
+
+              <input
+                id="slotCode"
+                class="form-control"
+                value="${escapeHtml(slot.slot_code)}">
+
+            </div>
+
+            <div class="form-group">
+
+              <label>Trạng thái</label>
+
+              <select
+                id="slotStatus"
+                class="form-control">
+
+                <option
+                  value="available"
+                  ${slot.status === "available" ? "selected" : ""}>
+                  Trống
+                </option>
+
+                <option
+                  value="occupied"
+                  ${slot.status === "occupied" ? "selected" : ""}>
+                  Đang đỗ
+                </option>
+
+                <option
+                  value="reserved"
+                  ${slot.status === "reserved" ? "selected" : ""}>
+                  Đã giữ
+                </option>
+
+              </select>
+
+            </div>
+          `,
+          "editSlot",
+        );
+      }
+
+      function changeSlotStatus(slot) {
+        selectedId = slot.id;
+
+        openModal(
+          "🔄 Đổi trạng thái",
+          `
+            <div class="form-group">
+
+              <label>Vị trí</label>
+
+              <input
+                class="form-control"
+                value="${escapeHtml(slot.slot_code)}"
+                disabled>
+
+            </div>
+
+            <div class="form-group">
+
+              <label>Trạng thái</label>
+
+              <select
+                id="slotStatus"
+                class="form-control">
+
+                <option
+                  value="available"
+                  ${slot.status === "available" ? "selected" : ""}>
+                  Trống
+                </option>
+
+                <option
+                  value="occupied"
+                  ${slot.status === "occupied" ? "selected" : ""}>
+                  Đang đỗ
+                </option>
+
+                <option
+                  value="reserved"
+                  ${slot.status === "reserved" ? "selected" : ""}>
+                  Đã giữ
+                </option>
+
+              </select>
+
+            </div>
+          `,
+          "statusSlot",
+        );
+      }
+
+      async function deleteSlot(id) {
+        if (!confirm("Bạn có chắc muốn xóa vị trí này?")) {
+          return;
+        }
+
+        try {
+          await api(`/api/areas/slots/${id}`, {
+            method: "DELETE",
+          });
+
+          alert("✅ Đã xóa vị trí");
+
+          loadParking();
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+      /* =====================================================
+   VEHICLES
+===================================================== */
+
+      async function showVehicles() {
+        setMenu("menuVehicles");
+
+        document.getElementById("pageTitle").textContent =
+          "Quản lý phương tiện";
+
+        document.getElementById("pageSubtitle").textContent =
+          "Thêm, sửa và xóa phương tiện";
+
+        const content = document.getElementById("mainContent");
+
+        content.innerHTML = `<div class="panel">
+            <div class="empty">
+                ⏳ Đang tải...
+            </div>
+        </div>`;
+
+        try {
+          const vehicles = await api("/api/vehicles/");
+
+          content.innerHTML = `
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        🚗 Danh sách phương tiện
+                    </div>
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="addVehicle()">
+                        ➕ Thêm phương tiện
+                    </button>
+
+                </div>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>ID</th>
+                                <th>Biển số</th>
+                                <th>Loại xe</th>
+                                <th>Chủ xe</th>
+                                <th>Thao tác</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            ${
+                              vehicles.length
+                                ? vehicles
+                                    .map(
+                                      (vehicle) => `
+
+                                    <tr>
+
+                                        <td>
+                                            ${escapeHtml(vehicle.id)}
+                                        </td>
+
+                                        <td>
+                                            <strong>
+                                                ${escapeHtml(vehicle.license_plate)}
+                                            </strong>
+                                        </td>
+
+                                        <td>
+                                            ${escapeHtml(vehicle.vehicle_type)}
+                                        </td>
+
+                                        <td>
+                                            ${escapeHtml(vehicle.owner_name || "-")}
+                                        </td>
+
+                                        <td>
+
+                                            <button
+                                                class="btn btn-warning btn-small"
+                                                onclick='editVehicle(${JSON.stringify(vehicle)})'>
+                                                ✏️ Sửa
+                                            </button>
+
+                                            <button
+                                                class="btn btn-danger btn-small"
+                                                onclick="deleteVehicle(${vehicle.id})">
+                                                🗑️ Xóa
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+
+                                `,
+                                    )
+                                    .join("")
+                                : `
+                                    <tr>
+                                        <td
+                                            colspan="5"
+                                            style="text-align:center">
+                                            Chưa có phương tiện
+                                        </td>
+                                    </tr>
+                                `
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+        `;
+        } catch (error) {
+          content.innerHTML = `
+            <div class="panel">
+                <div class="empty">
+                    ❌ ${escapeHtml(error.message)}
+                </div>
+            </div>
+        `;
+        }
+      }
+
+      function addVehicle() {
+        openModal(
+          "➕ Thêm phương tiện",
+
+          `
+            <div class="form-group">
+
+                <label>Biển số</label>
+
+                <input
+                    id="vehiclePlate"
+                    class="form-control"
+                    placeholder="VD: 30A-12345">
+
+            </div>
+
+            <div class="form-group">
+
+                <label>Loại xe</label>
+
+                <select
+                    id="vehicleType"
+                    class="form-control">
+
+                    <option value="car">
+                        Ô tô
+                    </option>
+
+                    <option value="motorbike">
+                        Xe máy
+                    </option>
+
+                    <option value="truck">
+                        Xe tải
+                    </option>
+
+                    <option value="bus">
+                        Xe buýt
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label>Chủ xe</label>
+
+                <input
+                    id="vehicleOwner"
+                    class="form-control"
+                    placeholder="Tên chủ xe">
+
+            </div>
+        `,
+
+          "addVehicle",
+        );
+      }
+
+      function editVehicle(vehicle) {
+        selectedId = vehicle.id;
+
+        openModal(
+          "✏️ Sửa phương tiện",
+
+          `
+            <div class="form-group">
+
+                <label>Biển số</label>
+
+                <input
+                    id="vehiclePlate"
+                    class="form-control"
+                    value="${escapeHtml(vehicle.license_plate)}">
+
+            </div>
+
+            <div class="form-group">
+
+                <label>Loại xe</label>
+
+                <select
+                    id="vehicleType"
+                    class="form-control">
+
+                    <option
+                        value="car"
+                        ${vehicle.vehicle_type === "car" ? "selected" : ""}>
+                        Ô tô
+                    </option>
+
+                    <option
+                        value="motorbike"
+                        ${vehicle.vehicle_type === "motorbike" ? "selected" : ""}>
+                        Xe máy
+                    </option>
+
+                    <option
+                        value="truck"
+                        ${vehicle.vehicle_type === "truck" ? "selected" : ""}>
+                        Xe tải
+                    </option>
+
+                    <option
+                        value="bus"
+                        ${vehicle.vehicle_type === "bus" ? "selected" : ""}>
+                        Xe buýt
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div class="form-group">
+
+                <label>Chủ xe</label>
+
+                <input
+                    id="vehicleOwner"
+                    class="form-control"
+                    value="${escapeHtml(vehicle.owner_name || "")}">
+
+            </div>
+        `,
+
+          "editVehicle",
+        );
+      }
+
+      async function deleteVehicle(id) {
+        if (!confirm("Bạn có chắc muốn xóa phương tiện này?")) {
+          return;
+        }
+
+        try {
+          await api(`/api/vehicles/${id}`, {
+            method: "DELETE",
+          });
+
+          alert("✅ Đã xóa phương tiện");
+
+          showVehicles();
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+
+      /* =====================================================
+   TICKETS
+===================================================== */
+
+      async function showTickets() {
+        setMenu("menuTickets");
+
+        document.getElementById("pageTitle").textContent = "Quản lý vé xe";
+
+        document.getElementById("pageSubtitle").textContent =
+          "Xe vào, xe ra và lịch sử vé";
+
+        const content = document.getElementById("mainContent");
+
+        try {
+          const tickets = await api("/api/tickets/");
+
+          const vehicles = await api("/api/vehicles/");
+
+          const areas = await api("/api/areas/");
+
+          let slots = [];
+
+          for (const area of areas) {
+            const areaSlots = await api(`/api/areas/${area.id}/slots`);
+
+            slots = slots.concat(areaSlots);
+          }
+
+          content.innerHTML = `
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        🎫 Vé xe
+                    </div>
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="vehicleEntry()">
+                        🚗 Xe vào
+                    </button>
+
+                </div>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Vé</th>
+                                <th>Xe</th>
+                                <th>Vị trí</th>
+                                <th>Vào</th>
+                                <th>Ra</th>
+                                <th>Phí</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            ${
+                              tickets.length
+                                ? tickets
+                                    .map((ticket) => {
+                                      const vehicle = vehicles.find(
+                                        (x) => x.id === ticket.vehicle_id,
+                                      );
+
+                                      const slot = slots.find(
+                                        (x) => x.id === ticket.slot_id,
+                                      );
+
+                                      return `
+
+                                        <tr>
+
+                                            <td>
+                                                ${escapeHtml(ticket.ticket_code)}
+                                            </td>
+
+                                            <td>
+                                                ${escapeHtml(
+                                                  vehicle?.license_plate || "-",
+                                                )}
+                                            </td>
+
+                                            <td>
+                                                ${escapeHtml(
+                                                  slot?.slot_code || "-",
+                                                )}
+                                            </td>
+
+                                            <td>
+                                                ${formatDate(ticket.entry_time)}
+                                            </td>
+
+                                            <td>
+                                                ${formatDate(ticket.exit_time)}
+                                            </td>
+
+                                            <td>
+                                                ${formatMoney(ticket.fee)}
+                                            </td>
+
+                                            <td>
+                                                ${
+                                                  ticket.status === "parking"
+                                                    ? `<span class="badge badge-red">Đang đỗ</span>`
+                                                    : `<span class="badge badge-green">Hoàn thành</span>`
+                                                }
+                                            </td>
+
+                                            <td>
+
+                                                ${
+                                                  ticket.status === "parking"
+                                                    ? `
+                                                        <button
+                                                            class="btn btn-success btn-small"
+                                                            onclick="vehicleExit(${ticket.id})">
+                                                            🚗 Xe ra
+                                                        </button>
+                                                    `
+                                                    : "-"
+                                                }
+
+                                            </td>
+
+                                        </tr>
+                                    `;
+                                    })
+                                    .join("")
+                                : `
+                                    <tr>
+                                        <td
+                                            colspan="8"
+                                            style="text-align:center">
+                                            Chưa có vé
+                                        </td>
+                                    </tr>
+                                `
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+        `;
+        } catch (error) {
+          content.innerHTML = `
+            <div class="panel">
+                <div class="empty">
+                    ❌ ${escapeHtml(error.message)}
+                </div>
+            </div>
+        `;
+        }
+      }
+
+      async function vehicleEntry() {
+        try {
+          const vehicles = await api("/api/vehicles/");
+
+          const areas = await api("/api/areas/");
+
+          let slots = [];
+
+          for (const area of areas) {
+            const areaSlots = await api(`/api/areas/${area.id}/slots`);
+
+            slots = slots.concat(
+              areaSlots.filter((x) => x.status === "available"),
+            );
+          }
+
+          openModal(
+            "🚗 Xe vào bãi",
+
+            `
+
+                <div class="form-group">
+
+                    <label>Phương tiện</label>
+
+                    <select
+                        id="entryVehicle"
+                        class="form-control">
+
+                        ${vehicles
+                          .map(
+                            (vehicle) => `
+                                <option value="${vehicle.id}">
+                                    ${escapeHtml(vehicle.license_plate)}
+                                    -
+                                    ${escapeHtml(vehicle.vehicle_type)}
+                                </option>
+                            `,
+                          )
+                          .join("")}
+
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>Vị trí</label>
+
+                    <select
+                        id="entrySlot"
+                        class="form-control">
+
+                        ${slots
+                          .map(
+                            (slot) => `
+                                <option value="${slot.id}">
+                                    ${escapeHtml(slot.slot_code)}
+                                </option>
+                            `,
+                          )
+                          .join("")}
+
+                    </select>
+
+                </div>
+
+            `,
+
+            "vehicleEntry",
+          );
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+
+      async function vehicleExit(ticketId) {
+        if (!confirm("Xác nhận xe ra khỏi bãi?")) {
+          return;
+        }
+
+        try {
+          const result = await api(`/api/tickets/${ticketId}/exit`, {
+            method: "POST",
+          });
+
+          alert("✅ Xe đã ra\n\n" + "Phí: " + formatMoney(result.fee));
+
+          showTickets();
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+
+      /* =====================================================
+   PRICES
+===================================================== */
+
+      async function showPrices() {
+        setMenu("menuPrices");
+
+        document.getElementById("pageTitle").textContent = "Bảng giá";
+
+        document.getElementById("pageSubtitle").textContent =
+          "Quản lý giá gửi xe";
+
+        const content = document.getElementById("mainContent");
+
+        try {
+          const prices = await api("/api/prices/");
+
+          content.innerHTML = `
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        💵 Bảng giá
+                    </div>
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="addPrice()">
+                        ➕ Thêm bảng giá
+                    </button>
+
+                </div>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>ID</th>
+                                <th>Loại xe</th>
+                                <th>Giờ đầu</th>
+                                <th>Giờ tiếp</th>
+                                <th>Tháng</th>
+                                <th>Thao tác</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            ${prices
+                              .map(
+                                (price) => `
+
+                                    <tr>
+
+                                        <td>
+                                            ${price.id}
+                                        </td>
+
+                                        <td>
+                                            ${escapeHtml(price.vehicle_type)}
+                                        </td>
+
+                                        <td>
+                                            ${formatMoney(
+                                              price.first_hour_price,
+                                            )}
+                                        </td>
+
+                                        <td>
+                                            ${formatMoney(
+                                              price.next_hour_price,
+                                            )}
+                                        </td>
+
+                                        <td>
+                                            ${formatMoney(price.monthly_price)}
+                                        </td>
+
+                                        <td>
+
+                                            <button
+                                                class="btn btn-warning btn-small"
+                                                onclick='editPrice(${JSON.stringify(price)})'>
+                                                ✏️ Sửa
+                                            </button>
+
+                                            <button
+                                                class="btn btn-danger btn-small"
+                                                onclick="deletePrice(${price.id})">
+                                                🗑️ Xóa
+                                            </button>
+
+                                        </td>
+
+                                    </tr>
+
+                                `,
+                              )
+                              .join("")}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+        `;
+        } catch (error) {
+          content.innerHTML = `
+            <div class="panel">
+                <div class="empty">
+                    ❌ ${escapeHtml(error.message)}
+                </div>
+            </div>
+        `;
+        }
+      }
+
+      function addPrice() {
+        openModal(
+          "➕ Thêm bảng giá",
+
+          priceForm(),
+
+          "addPrice",
+        );
+      }
+
+      function editPrice(price) {
+        selectedId = price.id;
+
+        openModal(
+          "✏️ Sửa bảng giá",
+
+          priceForm(price),
+
+          "editPrice",
+        );
+      }
+
+      function priceForm(price = {}) {
+        return `
+
+        <div class="form-group">
+
+            <label>Loại xe</label>
+
+            <input
+                id="priceVehicleType"
+                class="form-control"
+                value="${escapeHtml(price.vehicle_type || "")}"
+                placeholder="car">
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Giá giờ đầu</label>
+
+            <input
+                id="firstHourPrice"
+                class="form-control"
+                type="number"
+                min="0"
+                value="${price.first_hour_price ?? 0}">
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Giá giờ tiếp theo</label>
+
+            <input
+                id="nextHourPrice"
+                class="form-control"
+                type="number"
+                min="0"
+                value="${price.next_hour_price ?? 0}">
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Giá tháng</label>
+
+            <input
+                id="monthlyPrice"
+                class="form-control"
+                type="number"
+                min="0"
+                value="${price.monthly_price ?? 0}">
+
+        </div>
+
+    `;
+      }
+
+      async function deletePrice(id) {
+        if (!confirm("Xóa bảng giá này?")) {
+          return;
+        }
+
+        try {
+          await api(`/api/prices/${id}`, {
+            method: "DELETE",
+          });
+
+          alert("✅ Đã xóa bảng giá");
+
+          showPrices();
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+      /* =====================================================
+   REVENUE
+===================================================== */
+
+      async function showRevenue() {
+        setMenu("menuRevenue");
+
+        document.getElementById("pageTitle").textContent = "Doanh thu";
+
+        document.getElementById("pageSubtitle").textContent =
+          "Doanh thu từ các vé đã hoàn thành";
+
+        const content = document.getElementById("mainContent");
+
+        try {
+          const tickets = await api("/api/tickets/");
+
+          const completed = tickets.filter((x) => x.status === "completed");
+
+          const revenue = completed.reduce(
+            (sum, x) => sum + Number(x.fee || 0),
+            0,
+          );
+
+          content.innerHTML = `
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        💰 Doanh thu
+                    </div>
+
+                </div>
+
+                <div style="
+                    font-size:36px;
+                    font-weight:bold;
+                    color:#16a34a;
+                    margin-bottom:25px;
+                ">
+                    ${formatMoney(revenue)}
+                </div>
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Vé</th>
+                                <th>Phí</th>
+                                <th>Thời gian ra</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            ${completed
+                              .map(
+                                (ticket) => `
+
+                                    <tr>
+
+                                        <td>
+                                            ${escapeHtml(ticket.ticket_code)}
+                                        </td>
+
+                                        <td>
+                                            ${formatMoney(ticket.fee)}
+                                        </td>
+
+                                        <td>
+                                            ${formatDate(ticket.exit_time)}
+                                        </td>
+
+                                    </tr>
+
+                                `,
+                              )
+                              .join("")}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+        `;
+        } catch (error) {
+          content.innerHTML = `
+            <div class="panel">
+                <div class="empty">
+                    ❌ ${escapeHtml(error.message)}
+                </div>
+            </div>
+        `;
+        }
+      }
+
+      /* =====================================================
+   STATISTICS
+===================================================== */
+
+      async function showStatistics() {
+        setMenu("menuStatistics");
+
+        document.getElementById("pageTitle").textContent = "Thống kê";
+
+        document.getElementById("pageSubtitle").textContent =
+          "Tổng quan hoạt động bãi đỗ";
+
+        const content = document.getElementById("mainContent");
+
+        try {
+          const data = await api("/api/dashboard/summary");
+
+          content.innerHTML = `
+
+            <div class="panel">
+
+                <div class="panel-title">
+                    📊 Tổng quan
+                </div>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:
+                        repeat(auto-fit,minmax(200px,1fr));
+                    gap:15px;
+                    margin-top:20px;
+                ">
+
+                    ${statBox("📍", "Tổng vị trí", data.total_slots)}
+
+                    ${statBox("🟢", "Trống", data.available_slots)}
+
+                    ${statBox("🔴", "Đang đỗ", data.occupied_slots)}
+
+                    ${statBox("🟡", "Đã giữ", data.reserved_slots)}
+
+                    ${statBox("🚗", "Phương tiện", data.total_vehicles)}
+
+                    ${statBox("🎫", "Vé đang hoạt động", data.active_tickets)}
+
+                    ${statBox(
+                      "💰",
+                      "Doanh thu",
+                      formatMoney(data.total_revenue),
+                    )}
+
+                </div>
+
+            </div>
+        `;
+        } catch (error) {
+          content.innerHTML = `
+            <div class="panel">
+                <div class="empty">
+                    ❌ ${escapeHtml(error.message)}
+                </div>
+            </div>
+        `;
+        }
+      }
+
+      function statBox(icon, title, value) {
+        return `
+
+        <div style="
+            background:#f8fafc;
+            border:1px solid #e2e8f0;
+            border-radius:10px;
+            padding:20px;
+        ">
+
+            <div style="font-size:25px">
+                ${icon}
+            </div>
+
+            <div style="
+                color:#64748b;
+                margin-top:8px;
+            ">
+                ${title}
+            </div>
+
+            <div style="
+                font-size:26px;
+                font-weight:bold;
+                margin-top:5px;
+            ">
+                ${value}
+            </div>
+
+        </div>
+    `;
+      }
+
+      /* =====================================================
+   SAVE MODAL
+===================================================== */
+
+      async function saveModal() {
+        try {
+          /* ---------- AREA ---------- */
+
+          if (modalMode === "addArea" || modalMode === "editArea") {
+            const name = document.getElementById("areaName").value.trim();
+
+            const description = document
+              .getElementById("areaDescription")
+              .value.trim();
+
+            if (!name) {
+              alert("❌ Tên khu vực không được để trống");
+
+              return;
+            }
+
+            const params = new URLSearchParams();
+
+            params.append("name", name);
+
+            params.append("description", description);
+
+            const url =
+              modalMode === "addArea"
+                ? "/api/areas/"
+                : `/api/areas/${selectedId}`;
+
+            await api(url, {
+              method: modalMode === "addArea" ? "POST" : "PUT",
+
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+
+              body: params.toString(),
+            });
+
+            alert(
+              modalMode === "addArea"
+                ? "✅ Đã thêm khu vực"
+                : "✅ Đã sửa khu vực",
+            );
+
+            closeModal();
+
+            loadParking();
+
+            return;
+          }
+
+          /* ---------- SLOT ADD ---------- */
+
+          if (modalMode === "addSlot") {
+            const code = document.getElementById("slotCode").value.trim();
+
+            if (!code) {
+              alert("❌ Mã vị trí không được để trống");
+
+              return;
+            }
+
+            const params = new URLSearchParams();
+
+            params.append("slot_code", code);
+
+            await api(`/api/areas/${selectedAreaId}/slots`, {
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+
+              body: params.toString(),
+            });
+
+            alert("✅ Đã thêm vị trí");
+
+            closeModal();
+
+            loadParking();
+
+            return;
+          }
+
+          /* ---------- SLOT EDIT ---------- */
+
+          if (modalMode === "editSlot" || modalMode === "statusSlot") {
+            const code =
+              document.getElementById("slotCode")?.value.trim() || "";
+
+            const status = document.getElementById("slotStatus").value;
+
+            const params = new URLSearchParams();
+
+            params.append("slot_code", code);
+
+            params.append("slot_status", status);
+
+            await api(`/api/areas/slots/${selectedId}`, {
+              method: "PUT",
+
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+
+              body: params.toString(),
+            });
+
+            alert("✅ Đã cập nhật vị trí");
+
+            closeModal();
+
+            loadParking();
+
+            return;
+          }
+
+          /* ---------- VEHICLE ---------- */
+
+          if (modalMode === "addVehicle" || modalMode === "editVehicle") {
+            const plate = document.getElementById("vehiclePlate").value.trim();
+
+            const type = document.getElementById("vehicleType").value;
+
+            const owner = document.getElementById("vehicleOwner").value.trim();
+
+            if (!plate) {
+              alert("❌ Biển số không được để trống");
+
+              return;
+            }
+
+            const params = new URLSearchParams();
+
+            params.append("license_plate", plate);
+
+            params.append("vehicle_type", type);
+
+            params.append("owner_name", owner);
+
+            await api(
+              modalMode === "addVehicle"
+                ? "/api/vehicles/"
+                : `/api/vehicles/${selectedId}`,
+
+              {
+                method: modalMode === "addVehicle" ? "POST" : "PUT",
+
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+
+                body: params.toString(),
+              },
+            );
+
+            alert(
+              modalMode === "addVehicle"
+                ? "✅ Đã thêm phương tiện"
+                : "✅ Đã sửa phương tiện",
+            );
+
+            closeModal();
+
+            showVehicles();
+
+            return;
+          }
+
+          /* ---------- VEHICLE ENTRY ---------- */
+
+          if (modalMode === "vehicleEntry") {
+            const vehicleId = document.getElementById("entryVehicle").value;
+
+            const slotId = document.getElementById("entrySlot").value;
+
+            if (!vehicleId || !slotId) {
+              alert("❌ Cần chọn xe và vị trí");
+
+              return;
+            }
+
+            const params = new URLSearchParams();
+
+            params.append("vehicle_id", vehicleId);
+
+            params.append("slot_id", slotId);
+
+            await api("/api/tickets/entry", {
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+
+              body: params.toString(),
+            });
+
+            alert("✅ Xe đã vào bãi");
+
+            closeModal();
+
+            showTickets();
+
+            return;
+          }
+
+          /* ---------- PRICE ---------- */
+
+          if (modalMode === "addPrice" || modalMode === "editPrice") {
+            const type = document
+              .getElementById("priceVehicleType")
+              .value.trim();
+
+            const first = document.getElementById("firstHourPrice").value;
+
+            const next = document.getElementById("nextHourPrice").value;
+
+            const monthly = document.getElementById("monthlyPrice").value;
+
+            const params = new URLSearchParams();
+
+            params.append("vehicle_type", type);
+
+            params.append("first_hour_price", first);
+
+            params.append("next_hour_price", next);
+
+            params.append("monthly_price", monthly);
+
+            await api(
+              modalMode === "addPrice"
+                ? "/api/prices/"
+                : `/api/prices/${selectedId}`,
+
+              {
+                method: modalMode === "addPrice" ? "POST" : "PUT",
+
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+
+                body: params.toString(),
+              },
+            );
+
+            alert(
+              modalMode === "addPrice"
+                ? "✅ Đã thêm bảng giá"
+                : "✅ Đã sửa bảng giá",
+            );
+
+            closeModal();
+
+            showPrices();
+
+            return;
+          }
+        } catch (error) {
+          alert("❌ " + error.message);
+        }
+      }
+
+      /* =====================================================
+   STATS HEADER
+===================================================== */
+
+      function updateStats(total, available, occupied, reserved) {
+        document.getElementById("totalSlots").textContent = total;
+
+        document.getElementById("availableSlots").textContent = available;
+
+        document.getElementById("occupiedSlots").textContent = occupied;
+
+        document.getElementById("reservedSlots").textContent = reserved;
+      }
+
+      /* =====================================================
+   FORMAT
+===================================================== */
+
+      function formatMoney(value) {
+        return Number(value || 0).toLocaleString("vi-VN") + " đ";
+      }
+
+      function formatDate(value) {
+        if (!value) {
+          return "-";
+        }
+
+        try {
+          return new Date(value).toLocaleString("vi-VN");
+        } catch {
+          return value;
+        }
+      }
+
+      /* =====================================================
+   LOGOUT
+===================================================== */
+
+      function logout() {
+        localStorage.removeItem("access_token");
+
+        localStorage.removeItem("username");
+
+        window.location.href = "/login";
+      }
+
+      /* =====================================================
+   USER
+===================================================== */
+
+      const savedUsername = localStorage.getItem("username");
+
+      if (savedUsername) {
+        document.getElementById("username").textContent = savedUsername;
+      }
+
+      /* =====================================================
+   MODAL CLICK OUTSIDE
+===================================================== */
+
+      document
+        .getElementById("modal")
+        .addEventListener("click", function (event) {
+          if (event.target === this) {
+            closeModal();
+          }
+        });
+
+      /* =====================================================
+   START
+===================================================== */
+
+      if (!token()) {
+        window.location.href = "/login";
+      } else {
+        showParking();
+      }
+    </script>
+  </body>
+</html>

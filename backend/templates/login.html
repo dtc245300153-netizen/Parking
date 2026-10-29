@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Parking - Đăng nhập</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background: radial-gradient(circle at top, #dbeafe 0%, #93c5fd 18%, #1d4ed8 42%, #0f172a 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .login-box {
+        width: min(440px, calc(100vw - 28px));
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(12px);
+        padding: 34px 28px 26px;
+        border-radius: 20px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .demo-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+        color: #1d4ed8;
+        font-weight: 700;
+        font-size: 12px;
+        margin: 0 auto 20px;
+        width: fit-content;
+      }
+
+      .logo {
+        text-align: center;
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        color: #111827;
+        margin-bottom: 6px;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #475569;
+        margin-bottom: 22px;
+        font-size: 15px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #374151;
+      }
+
+      input {
+        width: 100%;
+        height: 46px;
+        padding: 0 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 15px;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: #2563eb;
+      }
+
+      button {
+        width: 100%;
+        height: 48px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 12px 26px rgba(37, 99, 235, 0.25);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.32);
+      }
+
+      button:disabled {
+        background: #93c5fd;
+        cursor: not-allowed;
+      }
+
+      .switch-mode {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin-top: 18px;
+        padding: 4px;
+        background: transparent;
+        color: #1d4ed8;
+        box-shadow: none;
+        font-size: 14px;
+      }
+
+      .switch-mode:hover {
+        background: transparent;
+        color: #1e40af;
+        box-shadow: none;
+        text-decoration: underline;
+        transform: none;
+      }
+
+      .form-note {
+        margin: -4px 0 16px;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      #message {
+        min-height: 24px;
+        margin-top: 18px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      .footer {
+        margin-top: 30px;
+        text-align: center;
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      body {
+        background-color: #edf0f2;
+        background-image:
+          linear-gradient(rgba(39, 52, 58, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(39, 52, 58, 0.035) 1px, transparent 1px);
+        background-size: 28px 28px;
+        color: #202a30;
+        font-family: "Segoe UI", Aptos, sans-serif;
+        padding: 20px 0;
+      }
+
+      .login-box {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #d5dde1;
+        border-radius: 8px;
+        background: #fff;
+        padding: 34px 30px 26px;
+        box-shadow: 0 12px 34px rgba(27, 38, 43, 0.13);
+      }
+
+      .login-box::before {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: #d46f2b;
+        content: "";
+      }
+
+      .demo-badge {
+        border-radius: 5px;
+        background: #fcecdf;
+        color: #9c4c17;
+      }
+
+      .logo {
+        color: #252c30;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        color: #637078;
+      }
+
+      label {
+        color: #3e4b51;
+      }
+
+      input {
+        border-color: #cbd5da;
+        border-radius: 6px;
+        color: #202a30;
+      }
+
+      input:focus {
+        border-color: #d46f2b;
+        box-shadow: 0 0 0 3px rgba(212, 111, 43, 0.15);
+      }
+
+      button {
+        border-radius: 6px;
+        background: #29343a;
+        box-shadow: none;
+      }
+
+      button:hover {
+        background: #19252b;
+        box-shadow: 0 5px 13px rgba(27, 38, 43, 0.18);
+      }
+
+      button:disabled {
+        background: #98a4aa;
+      }
+
+      .switch-mode,
+      .switch-mode:hover {
+        background: transparent;
+        color: #b75a1b;
+        box-shadow: none;
+      }
+
+      .footer {
+        color: #718078;
+      }
+
+      @media (max-width: 480px) {
+        .login-box {
+          padding: 30px 22px 22px;
+        }
+
+        .logo {
+          font-size: 30px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-box">
+      <div class="demo-badge">DEMO · ADMIN / 123456</div>
+      <div class="logo">🅿️ PARKING</div>
+
+      <div class="subtitle">Hệ thống quản lý bãi đỗ xe thông minh</div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username"> Tài khoản </label>
+
+          <input
+            id="username"
+            type="text"
+            placeholder="Nhập tài khoản"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password"> Mật khẩu </label>
+
+          <input
+            id="password"
+            type="password"
+            placeholder="Nhập mật khẩu"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button id="loginButton" type="submit">🔐 Đăng nhập</button>
+      </form>
+
+      <form id="registerForm" hidden>
+        <div class="form-group">
+          <label for="registerFullName">Họ và tên</label>
+          <input
+            id="registerFullName"
+            name="full_name"
+            type="text"
+            placeholder="Nhập họ và tên"
+            maxlength="100"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="registerUsername">Tài khoản</label>
+          <input
+            id="registerUsername"
+            name="username"
+            type="text"
+            placeholder="Ít nhất 3 ký tự"
+            minlength="3"
+            maxlength="50"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="registerPassword">Mật khẩu</label>
+          <input
+            id="registerPassword"
+            name="password"
+            type="password"
+            placeholder="Ít nhất 8 ký tự"
+            minlength="8"
+            maxlength="128"
+            autocomplete="new-password"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="registerEmail">Email <span style="font-weight: normal; color: #64748b">(không bắt buộc)</span></label>
+          <input
+            id="registerEmail"
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            maxlength="100"
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="registerPhone">Số điện thoại <span style="font-weight: normal; color: #64748b">(không bắt buộc)</span></label>
+          <input
+            id="registerPhone"
+            name="phone"
+            type="tel"
+            placeholder="Nhập số điện thoại"
+            maxlength="30"
+            autocomplete="tel"
+          />
+        </div>
+
+        <p class="form-note">Tạo tài khoản khách hàng để đăng ký xe và tra cứu vé gửi xe.</p>
+        <button id="registerButton" type="submit">Tạo tài khoản</button>
+      </form>
+
+      <button class="switch-mode" id="switchModeButton" type="button">
+        Chưa có tài khoản? Đăng ký khách hàng
+      </button>
+
+      <div id="message"></div>
+
+      <div class="footer">Parking Management System</div>
+    </div>
+
+    <script>
+      const loginForm = document.getElementById("loginForm");
+
+      const usernameInput = document.getElementById("username");
+
+      const passwordInput = document.getElementById("password");
+
+      const loginButton = document.getElementById("loginButton");
+
+      const message = document.getElementById("message");
+      const registerForm = document.getElementById("registerForm");
+      const registerButton = document.getElementById("registerButton");
+      const switchModeButton = document.getElementById("switchModeButton");
+
+      switchModeButton.addEventListener("click", function () {
+        const registering = loginForm.hidden;
+        loginForm.hidden = !registering;
+        registerForm.hidden = registering;
+        switchModeButton.textContent = registering
+          ? "Chưa có tài khoản? Đăng ký khách hàng"
+          : "Đã có tài khoản? Quay lại đăng nhập";
+        message.textContent = "";
+      });
+
+      loginForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const username = usernameInput.value.trim();
+
+        const password = passwordInput.value;
+
+        if (!username || !password) {
+          message.textContent = "❌ Vui lòng nhập đầy đủ tài khoản và mật khẩu";
+
+          message.style.color = "#dc2626";
+
+          return;
+        }
+
+        loginButton.disabled = true;
+
+        loginButton.textContent = "⏳ Đang đăng nhập...";
+
+        message.textContent = "";
+
+        try {
+          /*
+           * OAuth2PasswordRequestForm của FastAPI
+           * yêu cầu application/x-www-form-urlencoded
+           */
+
+          const formData = new URLSearchParams();
+
+          formData.append("username", username);
+
+          formData.append("password", password);
+
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+
+            body: formData.toString(),
+          });
+
+          let data = {};
+
+          try {
+            data = await response.json();
+          } catch (error) {
+            data = {};
+          }
+
+          console.log("Login response:", response.status, data);
+
+          /*
+           * Đăng nhập sai
+           */
+
+          if (!response.ok) {
+            let errorMessage = "Sai tài khoản hoặc mật khẩu";
+
+            if (typeof data.detail === "string") {
+              errorMessage = data.detail;
+            }
+
+            message.textContent = "❌ " + errorMessage;
+
+            message.style.color = "#dc2626";
+
+            loginButton.disabled = false;
+
+            loginButton.textContent = "🔐 Đăng nhập";
+
+            return;
+          }
+
+          /*
+           * Kiểm tra token
+           */
+
+          if (!data.access_token) {
+            message.textContent = "❌ Máy chủ không trả về access token";
+
+            message.style.color = "#dc2626";
+
+            loginButton.disabled = false;
+
+            loginButton.textContent = "🔐 Đăng nhập";
+
+            return;
+          }
+
+          /*
+           * Lưu thông tin đăng nhập
+           */
+
+          localStorage.setItem("access_token", data.access_token);
+
+          localStorage.setItem("username", username);
+
+          /*
+           * Đăng nhập thành công
+           */
+
+          message.textContent = "✅ Đăng nhập thành công!";
+
+          message.style.color = "#16a34a";
+
+          /*
+           * Chuyển sang giao diện
+           * bãi đỗ xe
+           */
+
+          setTimeout(function () {
+            window.location.href = "/parking";
+          }, 500);
+        } catch (error) {
+          console.error("Login error:", error);
+
+          message.textContent = "❌ Không thể kết nối tới máy chủ";
+
+          message.style.color = "#dc2626";
+
+          loginButton.disabled = false;
+
+          loginButton.textContent = "🔐 Đăng nhập";
+        }
+      });
+
+      registerForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (!registerForm.reportValidity()) {
+          return;
+        }
+
+        registerButton.disabled = true;
+        registerButton.textContent = "Đang tạo tài khoản...";
+        message.textContent = "";
+
+        const payload = {
+          full_name: document.getElementById("registerFullName").value.trim(),
+          username: document.getElementById("registerUsername").value.trim(),
+          password: document.getElementById("registerPassword").value,
+          email: document.getElementById("registerEmail").value.trim() || null,
+          phone: document.getElementById("registerPhone").value.trim() || null,
+        };
+
+        try {
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            const detail = typeof data.detail === "string"
+              ? data.detail
+              : "Không thể tạo tài khoản. Vui lòng kiểm tra lại thông tin.";
+            throw new Error(detail);
+          }
+
+          registerForm.reset();
+          document.getElementById("username").value = data.username;
+          loginForm.hidden = false;
+          registerForm.hidden = true;
+          switchModeButton.textContent = "Chưa có tài khoản? Đăng ký khách hàng";
+          message.textContent = "✅ Tạo tài khoản thành công. Hãy đăng nhập.";
+          message.style.color = "#16a34a";
+          passwordInput.focus();
+        } catch (error) {
+          message.textContent = "❌ " + (error.message || "Không thể kết nối tới máy chủ");
+          message.style.color = "#dc2626";
+        } finally {
+          registerButton.disabled = false;
+          registerButton.textContent = "Tạo tài khoản";
+        }
+      });
+    </script>
+  </body>
+</html>
