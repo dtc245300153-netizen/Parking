@@ -3,6 +3,7 @@
 | Tiêu chí | Trạng thái | Minh chứng |
 |---|---|---|
 | Cấu trúc dự án | Đạt có điều kiện | `backend/app`, `backend/templates`, `docs`, `.vscode`; `database/backend` được ghi nhận là legacy duplicate. |
+<<<<<<< HEAD
 | Đăng nhập và phân quyền | Đạt một phần | JWT/OAuth2; runtime chấp nhận `admin`, `employee`/`staff`, `customer`. Chưa hỗ trợ role `manager`. |
 | CRUD nghiệp vụ | Đạt một phần | Khu vực, vị trí, phương tiện, vé, bảng giá; admin có tạo tài khoản nhân viên, cập nhật chức vụ và khóa/mở tài khoản. Vé tháng chưa có quy tắc dữ liệu/giá nên chưa triển khai. |
 | Tìm kiếm/lọc/sắp xếp | Đạt | Lọc vị trí theo mã/trạng thái/khu vực, tìm phương tiện, API order theo id; ticket/price có thể mở rộng cùng helper. |
@@ -13,14 +14,29 @@
 | Minh chứng AI | Đạt một phần | Assistant truy vấn dữ liệu thật; provider có thể diễn giải gợi ý nhân sự từ ước tính backend. Kiểm thử provider dùng mock; cần cấu hình và xác nhận model thật trước khi tuyên bố đã tích hợp. Forecast công suất và nhận diện biển số chưa triển khai. |
 | Kiểm thử | Đạt một phần | Có test traffic/timezone/peak, AI fallback/capabilities, login/phân quyền, quản lý nhân viên, check-in/out, cập nhật chỗ và phí 60/61 phút. Chưa có test browser tự động hoặc đánh giá chất lượng model thật. |
 | Mã nguồn/tài liệu chạy | Đạt một phần | Có `README.md`, `.env.example`, tài liệu demo-bàn giao và Git repository riêng ở thư mục project; chưa có commit/remote hoặc hướng dẫn triển khai production. |
+=======
+| Đăng nhập và phân quyền | Đạt sau bổ sung | JWT/OAuth2, role `admin/manager/staff`, dependency bảo vệ route, `.env.example`. |
+| CRUD nghiệp vụ | Đạt | Khu vực, vị trí, phương tiện, vé, bảng giá trong `backend/app/main.py` và routers. |
+| Tìm kiếm/lọc/sắp xếp | Đạt | Lọc vị trí theo mã/trạng thái/khu vực, tìm phương tiện, API order theo id; ticket/price có thể mở rộng cùng helper. |
+| Thống kê/báo cáo | Đạt | Dashboard động, doanh thu ngày/tuần/tháng, công suất, phân bố trạng thái. |
+| Giao diện/UX | Đạt | Loading, empty, error, confirm delete, notification chat, responsive CSS, modal chi tiết vị trí. |
+| CSDL | Đạt | SQLAlchemy + SQLite, seed idempotent, 50 vị trí demo, backup/restore. |
+| Xử lý lỗi | Đạt | Validation, HTTP status, API error parser, auth redirect, AI unsupported status. |
+| Minh chứng AI | Đạt | `docs/ai-development-log.md` ghi prompt, phản hồi, phần kiểm tra/chỉnh sửa. |
+| Mã nguồn/tài liệu chạy | Đạt sau bổ sung | `README.md`, `.env.example`, `docs/architecture.md`; Git repository chưa được khởi tạo trong workspace hiện tại. |
+>>>>>>> origin/main
 
 ## Điểm cần nêu khi demo
 
 - Tài khoản demo: `admin` / `123456`, chỉ dùng cho demo local.
 - Số liệu dashboard lấy từ database, không lấy từ số cố định trong template.
+<<<<<<< HEAD
 - Demo assistant: `Báo cáo lưu lượng xe tuần này theo ngày`, `Khung giờ nào đông nhất tuần này?`, `Gợi ý bố trí nhân sự tuần này`.
 - Gợi ý nhân sự là ước tính theo giả định mặc định 10 lượt/nhân viên/giờ. Provider chỉ diễn giải số backend đã tính; đây không phải dự báo hoặc lịch phân ca.
 - Forecast công suất và nhận diện biển số chưa triển khai; không trình bày như đã hoạt động.
 - Vé tháng/thanh toán định kỳ chưa triển khai; bảng giá hiện hành tính theo thời lượng gửi.
 - Kịch bản cấu hình provider, lệnh chạy test, phạm vi test và checklist minh chứng nằm trong `docs/demo-and-handoff.md`.
+=======
+- Parking AI Assistant là data assistant deterministic; model generative chưa được cấu hình và không được trình bày như đã hoạt động.
+>>>>>>> origin/main
 - Số điện thoại, tầng, loại vị trí và reservation chưa có trong schema hiện tại nên không được bịa trên giao diện.
