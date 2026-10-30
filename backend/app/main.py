@@ -1,3 +1,6 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional
 from uuid import uuid4
@@ -10,7 +13,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .database import Base, engine, get_db
+from .database import Base, SessionLocal, engine, get_db
 from .models import (
     User,
     Employee,
@@ -25,6 +28,7 @@ from .models import (
     Pricing,
     ActivityLog,
     Notification,
+    Reservation,
 )
 from .security import (
     canonical_role,
@@ -41,12 +45,16 @@ from .routers.parking import router as parking_router
 from .routers.reports import router as reports_router
 from .routers.users import router as users_router
 from .routers.tickets import router as tickets_router
+from .routers.reservations import router as reservations_router
 from .services.ai import (
     NotConfiguredAiProvider,
     answer_question,
+    contains_revenue_question,
     get_capabilities,
+    is_employee_list_question,
 )
 from .services.qr import ticket_qr_payload
+from .services.reservations import expire_reservations, utc_now_naive
 from .time_utils import VIETNAM_TIMEZONE, to_vietnam_datetime
 
 
@@ -73,6 +81,40 @@ if "user_id" not in {
         )
 
 
+logger = logging.getLogger(__name__)
+
+
+async def _reservation_expiration_worker() -> None:
+    while True:
+        db = SessionLocal()
+        try:
+            expired_count = expire_reservations(db)
+            if expired_count:
+                db.commit()
+                logger.info("Expired %d parking reservations", expired_count)
+        except Exception:
+            db.rollback()
+            logger.exception("Could not expire parking reservations")
+        finally:
+            db.close()
+        await asyncio.sleep(30)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    reservation_expiration_task = asyncio.create_task(
+        _reservation_expiration_worker()
+    )
+    try:
+        yield
+    finally:
+        reservation_expiration_task.cancel()
+        try:
+            await reservation_expiration_task
+        except asyncio.CancelledError:
+            pass
+
+
 # =========================================================
 # FASTAPI
 # =========================================================
@@ -81,6 +123,7 @@ app = FastAPI(
     title="Parking Management System",
     description="Hệ thống quản lý bãi đỗ xe",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
@@ -101,6 +144,7 @@ app.include_router(employees_router)
 app.include_router(users_router)
 app.include_router(parking_router)
 app.include_router(tickets_router)
+app.include_router(reservations_router)
 app.include_router(reports_router)
 app.include_router(ai_router)
 
@@ -515,7 +559,7 @@ def calculate_pricing_fee(
     return float(selected_rule.price)
 
 
-def ticket_to_dict(ticket):
+def ticket_to_dict(ticket, include_fee: bool = True):
     entry_dt = getattr(ticket, "check_in", None) or getattr(ticket, "entry_time", None)
     exit_dt = getattr(ticket, "check_out", None) or getattr(ticket, "exit_time", None)
     duration_minutes = None
@@ -526,7 +570,7 @@ def ticket_to_dict(ticket):
             int((end_time - entry_dt).total_seconds() // 60),
         )
 
-    return {
+    result = {
         "id": ticket.id,
         "ticket_code": ticket.ticket_code,
         "vehicle_id": ticket.vehicle_id,
@@ -560,6 +604,9 @@ def ticket_to_dict(ticket):
         "status": normalize_ticket_status(ticket.status),
         "duration_minutes": duration_minutes,
     }
+    if not include_fee:
+        result.pop("fee")
+    return result
 
 
 # =========================================================
@@ -634,8 +681,35 @@ def ai_assistant(
     check_user(current_user)
     if canonical_role(current_user.role) not in {"CUSTOMER", "ADMIN"}:
         raise HTTPException(status_code=403, detail="Chỉ khách hàng mới được hỏi AI")
+    if (
+        canonical_role(current_user.role) != "ADMIN"
+        and contains_revenue_question(data.question)
+    ):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem doanh thu")
+    if (
+        canonical_role(current_user.role) != "ADMIN"
+        and is_employee_list_question(data.question)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ Admin mới được xem danh sách nhân viên",
+        )
     try:
-        return answer_question(db, data.question)
+        customer = (
+            db.query(Customer)
+            .filter(Customer.user_id == current_user.id)
+            .first()
+            if canonical_role(current_user.role) == "CUSTOMER"
+            else None
+        )
+        customer_id = (
+            customer.id
+            if customer is not None
+            else 0
+            if canonical_role(current_user.role) == "CUSTOMER"
+            else None
+        )
+        return answer_question(db, data.question, customer_id=customer_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     except LookupError as error:
@@ -1580,7 +1654,8 @@ def get_tickets(
 
     tickets = ticket_query.order_by(ParkingTicket.id.desc()).all()
 
-    return [ticket_to_dict(t) for t in tickets]
+    include_fee = canonical_role(current_user.role) != "EMPLOYEE"
+    return [ticket_to_dict(ticket, include_fee=include_fee) for ticket in tickets]
 
 
 @app.get("/api/tickets/{ticket_id}/qr")
@@ -1646,7 +1721,34 @@ def vehicle_entry(
             detail="Không tìm thấy vị trí",
         )
 
-    if normalize_slot_db_status(slot.status) != "EMPTY":
+    reservation_now = utc_now_naive()
+    expire_reservations(db, reservation_now)
+    active_reservation = (
+        db.query(Reservation)
+        .filter(
+            Reservation.vehicle_id == vehicle.id,
+            Reservation.status == "RESERVED",
+            Reservation.expire_time > reservation_now,
+        )
+        .order_by(Reservation.reservation_time.desc())
+        .first()
+    )
+    if active_reservation and active_reservation.slot_id != slot.id:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Xe đã có chỗ đặt trước. Vui lòng check-in đúng vị trí "
+                f"{active_reservation.slot.slot_code if active_reservation.slot else ''}"
+            ),
+        )
+
+    slot_status = normalize_slot_db_status(slot.status)
+    slot_is_reserved_for_vehicle = (
+        active_reservation is not None
+        and active_reservation.slot_id == slot.id
+        and slot_status == "RESERVED"
+    )
+    if slot_status != "EMPTY" and not slot_is_reserved_for_vehicle:
         raise HTTPException(
             status_code=400,
             detail="Vị trí này không còn trống",
@@ -1694,6 +1796,8 @@ def vehicle_entry(
     )
 
     slot.status = "OCCUPIED"
+    if active_reservation is not None:
+        active_reservation.status = "IN_PARKING"
 
     db.add(ticket)
     db.flush()
@@ -1950,7 +2054,7 @@ def get_dashboard_data(db: Session):
 @app.get("/api/dashboard")
 def dashboard(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_employee_or_admin),
 ):
     check_user(current_user)
 
@@ -1973,7 +2077,7 @@ def dashboard(
 @app.get("/api/dashboard/summary")
 def dashboard_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_employee_or_admin),
 ):
     check_user(current_user)
 

@@ -13,11 +13,21 @@ SYSTEM_PROMPT = (
 )
 
 
-def build_ai_context(db: Session) -> dict[str, Any]:
-    tickets = db.query(ParkingTicket).all()
+def build_ai_context(
+    db: Session,
+    customer_id: int | None = None,
+) -> dict[str, Any]:
+    ticket_query = db.query(ParkingTicket)
+    vehicle_query = db.query(Vehicle)
+    if customer_id is not None:
+        ticket_query = ticket_query.join(Vehicle).filter(
+            Vehicle.customer_id == customer_id
+        )
+        vehicle_query = vehicle_query.filter(Vehicle.customer_id == customer_id)
+    tickets = ticket_query.all()
     slots = db.query(ParkingSlot).all()
     areas = db.query(ParkingArea).all()
-    vehicles = db.query(Vehicle).all()
+    vehicles = vehicle_query.all()
 
     return {
         "timestamp": datetime.utcnow().isoformat(),

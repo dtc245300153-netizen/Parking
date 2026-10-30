@@ -93,6 +93,22 @@ class Vehicle(Base):
             self.customer.full_name = name
 
 
+class Reservation(Base):
+    __tablename__ = "reservations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False, index=True)
+    slot_id = Column(Integer, ForeignKey("parking_slots.id"), nullable=True, index=True)
+    status = Column(String(30), nullable=False, default="RESERVED", index=True)
+    reservation_time = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expire_time = Column(DateTime, nullable=False, index=True)
+
+    user = relationship("User")
+    vehicle = relationship("Vehicle")
+    slot = relationship("ParkingSlot")
+
+
 class ParkingArea(Base):
     __tablename__ = "parking_areas"
 

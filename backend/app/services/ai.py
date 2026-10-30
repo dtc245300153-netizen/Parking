@@ -9,7 +9,7 @@ from urllib.parse import quote, urlsplit
 import httpx
 from sqlalchemy.orm import Session
 
-from ..models import ParkingSlot, ParkingTicket, Vehicle
+from ..models import Employee, ParkingSlot, ParkingTicket, Vehicle
 from ..time_utils import VIETNAM_TIMEZONE, to_vietnam_datetime
 
 
@@ -225,10 +225,53 @@ def get_configured_provider() -> OpenAiCompatibleProvider | GeminiProvider | Non
     return OpenAiCompatibleProvider(base_url, api_key, model, provider_name)
 
 
-def answer_question(db: Session, question: str) -> dict[str, Any]:
+def contains_revenue_question(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    return any(
+        phrase in normalized
+        for phrase in (
+            "doanh thu",
+            "khoản thu",
+            "khoan thu",
+            "tiền thu",
+            "tien thu",
+            "tổng thu",
+            "tong thu",
+            "tổng tiền",
+            "tong tien",
+            "lợi nhuận",
+            "loi nhuan",
+            "thu nhập",
+            "thu nhap",
+            "revenue",
+        )
+    )
+
+
+def is_employee_list_question(question: str) -> bool:
+    normalized = " ".join(question.lower().split())
+    return "nhân viên" in normalized and any(
+        phrase in normalized
+        for phrase in (
+            "danh sách",
+            "tất cả",
+            "toàn bộ",
+            "liệt kê",
+            "trong chương trình",
+            "hiện có",
+            "những ai",
+        )
+    )
+
+
+def answer_question(
+    db: Session,
+    question: str,
+    customer_id: int | None = None,
+) -> dict[str, Any]:
     provider = get_configured_provider()
     try:
-        result = answer_parking_question(db, question)
+        result = answer_parking_question(db, question, customer_id=customer_id)
     except LookupError:
         if provider is None:
             raise
@@ -256,6 +299,12 @@ def answer_question(db: Session, question: str) -> dict[str, Any]:
         }
 
     if provider is None:
+        return {**result, "source": "database_rules"}
+
+    if result["intent"] == "customer_parked_vehicles":
+        return {**result, "source": "database_rules"}
+
+    if result["intent"] == "employee_directory":
         return {**result, "source": "database_rules"}
 
     if result["intent"] == "staffing_recommendation":
@@ -380,16 +429,23 @@ def _arrivals_per_employee() -> int:
         return 10
 
 
-def _today_tickets(db: Session):
+def _today_tickets(db: Session, customer_id: int | None = None):
     today = datetime.now(VIETNAM_TIMEZONE).date()
+    query = db.query(ParkingTicket)
+    if customer_id is not None:
+        query = query.join(Vehicle).filter(Vehicle.customer_id == customer_id)
     return [
         ticket
-        for ticket in db.query(ParkingTicket).all()
+        for ticket in query.all()
         if ticket.check_in and to_vietnam_datetime(ticket.check_in).date() == today
     ]
 
 
-def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
+def answer_parking_question(
+    db: Session,
+    question: str,
+    customer_id: int | None = None,
+) -> dict[str, Any]:
     """Answer supported factual questions from current database state.
 
     This is deliberately deterministic. A generative provider can be plugged in
@@ -400,9 +456,16 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
         raise ValueError("Câu hỏi không được để trống")
 
     slots = db.query(ParkingSlot).all()
-    vehicles = db.query(Vehicle).all()
-    tickets = db.query(ParkingTicket).all()
-    today_tickets = _today_tickets(db)
+    vehicle_query = db.query(Vehicle)
+    ticket_query = db.query(ParkingTicket)
+    if customer_id is not None:
+        vehicle_query = vehicle_query.filter(Vehicle.customer_id == customer_id)
+        ticket_query = ticket_query.join(Vehicle).filter(
+            Vehicle.customer_id == customer_id
+        )
+    vehicles = vehicle_query.all()
+    tickets = ticket_query.all()
+    today_tickets = _today_tickets(db, customer_id)
     completed = [
         ticket for ticket in tickets
         if str(ticket.status).upper() in {"PAID", "COMPLETED", "FINISHED"}
@@ -416,6 +479,120 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
             for ticket in completed
             if ticket.exit_time and to_vietnam_datetime(ticket.exit_time).date() >= start_date
         )
+
+    if any(
+        phrase in normalized
+        for phrase in (
+            "bạn có thể trả lời gì",
+            "có thể hỏi gì",
+            "có thể hỏi những gì",
+            "trợ giúp",
+            "hướng dẫn hỏi",
+            "bạn làm được gì",
+            "bạn hỗ trợ gì",
+        )
+    ):
+        suggestions = [
+            "Bãi còn bao nhiêu chỗ trống?",
+            "Xe của tôi đang gửi ở đâu?",
+            "Lưu lượng xe tuần này thế nào?",
+            "Khung giờ nào đông nhất?",
+        ]
+        if customer_id is None:
+            suggestions.extend(
+                [
+                    "Tất cả nhân viên trong chương trình là ai?",
+                    "Doanh thu hôm nay là bao nhiêu?",
+                    "Gợi ý bố trí nhân sự tuần này.",
+                ]
+            )
+        return {
+            "intent": "help",
+            "answer": "Bạn có thể hỏi: " + " ".join(suggestions),
+            "data": {"suggestions": suggestions},
+        }
+
+    if is_employee_list_question(question):
+        if customer_id is not None:
+            raise PermissionError("Chỉ Admin mới được xem danh sách nhân viên.")
+        employees = (
+            db.query(Employee)
+            .order_by(Employee.id)
+            .all()
+        )
+        directory = [
+            {
+                "employee_code": employee.employee_code,
+                "full_name": employee.user.full_name,
+                "position": employee.position,
+                "status": employee.status,
+            }
+            for employee in employees
+            if employee.user is not None
+        ]
+        if not directory:
+            answer = "Hiện chưa có hồ sơ nhân viên nào trong chương trình."
+        else:
+            entries = "; ".join(
+                f"{employee['full_name']} (mã {employee['employee_code']}, "
+                f"{employee['position']}, {employee['status']})"
+                for employee in directory
+            )
+            answer = f"Chương trình có {len(directory)} nhân viên: {entries}."
+        return {
+            "intent": "employee_directory",
+            "answer": answer,
+            "data": {"employees": directory},
+        }
+
+    personal_vehicle_terms = ("xe tôi", "xe của tôi", "xe mình", "xe của mình")
+    parked_vehicle_terms = (
+        "đang đỗ",
+        "đang gửi",
+        "đang ở đâu",
+        "đang ở bãi",
+        "đang trong bãi",
+        "đỗ ở đâu",
+        "gửi ở đâu",
+        "ở bãi nào",
+        "vị trí nào",
+    )
+    if (
+        customer_id is not None
+        and any(term in normalized for term in personal_vehicle_terms)
+        and any(term in normalized for term in parked_vehicle_terms)
+    ):
+        active_tickets = [
+            ticket
+            for ticket in tickets
+            if str(ticket.status).strip().upper() in {"PARKING", "ACTIVE"}
+            and ticket.check_out is None
+        ]
+        parked_vehicles = [
+            {
+                "license_plate": ticket.vehicle.license_plate,
+                "slot_code": ticket.slot.slot_code if ticket.slot else None,
+            }
+            for ticket in active_tickets
+            if ticket.vehicle is not None
+        ]
+        if parked_vehicles:
+            answer = "Xe của bạn đang gửi trong bãi: " + "; ".join(
+                f"{vehicle['license_plate']}"
+                + (
+                    f" tại vị trí {vehicle['slot_code']}"
+                    if vehicle["slot_code"]
+                    else ""
+                )
+                for vehicle in parked_vehicles
+            ) + "."
+        else:
+            answer = "Hiện không có xe nào của bạn đang được ghi nhận là đang đỗ trong bãi."
+        return {
+            "intent": "customer_parked_vehicles",
+            "answer": answer,
+            "data": {"vehicles": parked_vehicles},
+        }
 
     if any(term in normalized for term in ["còn bao nhiêu chỗ", "chỗ trống", "vị trí đang trống"]):
         available = sum(str(slot.status).upper() in {"EMPTY", "AVAILABLE"} for slot in slots)
@@ -543,7 +720,16 @@ def answer_parking_question(db: Session, question: str) -> dict[str, Any]:
                         ),
                         None,
                     )
-                    vehicle = ticket.vehicle if ticket else None
+                    vehicle = (
+                        ticket.vehicle
+                        if ticket
+                        and (
+                            customer_id is None
+                            or ticket.vehicle
+                            and ticket.vehicle.customer_id == customer_id
+                        )
+                        else None
+                    )
                     answer = f"Vị trí {slot.slot_code} đang có xe {vehicle.license_plate if vehicle else 'chưa xác định'}."
                 else:
                     answer = f"Vị trí {slot.slot_code} hiện không có xe đang đỗ."

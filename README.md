@@ -43,12 +43,26 @@ Tài khoản demo được tạo bởi `create_admin.py`:
 - `POST /api/auth/login`: đăng nhập OAuth2 form.
 - `/api/areas`, `/api/slots`, `/api/vehicles`, `/api/tickets`, `/api/prices`: CRUD nghiệp vụ.
 - `/api/users`, `/api/employees`: quản lý tài khoản và hồ sơ nhân viên (admin).
+- `/api/reservations`: khách hàng đặt chỗ trước cho xe của mình; hệ thống giữ vị trí tối đa 30 phút, tác vụ nền quét mỗi 30 giây để tự chuyển sang `EXPIRED` và giải phóng chỗ; khách hàng có thể hủy. Nhân viên check-in xe đặt trước tại đúng vị trí đã giữ, chuyển trạng thái sang `IN_PARKING`.
 - `/api/audit-logs`, `/api/notifications`: nhật ký admin và thông báo theo tài khoản.
 - `GET /api/dashboard/summary`: chỉ số vị trí, xe, vé, doanh thu và công suất.
 - `GET /api/revenue`: doanh thu theo thời gian/loại xe/ngày.
-- `POST /api/ai/assistant`: trợ lý trả lời câu hỏi chung và truy vấn dữ liệu bãi xe; báo cáo lượt xe theo ngày/tuần, giờ cao điểm và ước tính nhân sự.
+- `GET /api/reports/revenue.xlsx`: tải báo cáo Excel gồm tổng quan doanh thu theo ngày và chi tiết vé đã thanh toán (chỉ Admin); có nút **Xuất Excel** tại màn hình Doanh thu.
+- `POST /api/ai/assistant`: trợ lý truy vấn dữ liệu bãi xe; khách hàng có thể hỏi xe của mình đang gửi ở vị trí nào; Admin có thể hỏi danh sách nhân viên, doanh thu, lưu lượng theo ngày/tuần, giờ cao điểm và gợi ý bố trí nhân sự. Hỏi `Bạn có thể trả lời gì?` để xem gợi ý câu hỏi theo vai trò.
 - `GET /api/ai/capabilities`: trạng thái các AI capability.
 - `GET /docs`: Swagger UI.
+
+## Phân quyền người dùng
+
+Hệ thống dùng JWT và kiểm tra quyền ở API; menu trên giao diện chỉ là lớp hiển thị bổ sung.
+
+| Vai trò | Quyền chính |
+|---|---|
+| Admin | Quản lý người dùng, nhân viên, bãi đỗ, bảng giá; xem thống kê và doanh thu; vận hành xe vào/ra. |
+| Staff (`EMPLOYEE`) | Xem thông tin vận hành, check-in/check-out và tra cứu vé; không truy cập báo cáo doanh thu. |
+| Customer | Chỉ xem phương tiện, vé và lịch sử thuộc tài khoản của mình; không truy cập dashboard hoặc dữ liệu doanh thu. |
+
+Khi tạo tài khoản, API chấp nhận `STAFF` và chuẩn hóa thành role lưu trữ `EMPLOYEE`.
 
 ## Kịch bản demo AI
 

@@ -7,8 +7,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Customer, Employee, ParkingSlot, ParkingTicket, Payment, Pricing, User, Vehicle
+from ..models import Customer, Employee, ParkingSlot, ParkingTicket, Payment, Pricing, Reservation, User, Vehicle
 from ..security import canonical_role, get_current_user, require_employee_or_admin
+from ..services.reservations import expire_reservations, utc_now_naive
 
 router = APIRouter(prefix="/api/tickets", tags=["Tickets"])
 
@@ -38,6 +39,22 @@ def normalize_ticket_status(value):
         "FINISHED": "PAID",
     }
     return mapping.get(normalized, normalized)
+
+
+def ticket_summary(ticket: ParkingTicket, include_amount: bool) -> dict:
+    result = {
+        "id": ticket.id,
+        "ticket_code": ticket.ticket_code,
+        "vehicle_id": ticket.vehicle_id,
+        "slot_id": ticket.slot_id,
+        "employee_id": ticket.employee_id,
+        "check_in": ticket.check_in,
+        "check_out": ticket.check_out,
+        "status": ticket.status,
+    }
+    if include_amount:
+        result["amount"] = ticket.amount
+    return result
 
 
 class TicketCheckInRequest(BaseModel):
@@ -113,7 +130,12 @@ def get_tickets(
         )
     elif canonical_role(current_user.role) not in {"ADMIN", "EMPLOYEE"}:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem vé xe")
-    return ticket_query.order_by(ParkingTicket.id.desc()).all()
+    tickets = ticket_query.order_by(ParkingTicket.id.desc()).all()
+    include_amount = canonical_role(current_user.role) != "EMPLOYEE"
+    return [
+        ticket_summary(ticket, include_amount=include_amount)
+        for ticket in tickets
+    ]
 
 
 @router.get("/{ticket_id}")
@@ -135,7 +157,8 @@ def get_ticket_by_id(
             raise HTTPException(status_code=404, detail="Không tìm thấy vé xe")
     elif canonical_role(current_user.role) not in {"ADMIN", "EMPLOYEE"}:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem vé xe")
-    return ticket
+    include_amount = canonical_role(current_user.role) != "EMPLOYEE"
+    return ticket_summary(ticket, include_amount=include_amount)
 
 
 @router.post("/check-in", status_code=status.HTTP_201_CREATED)
@@ -191,7 +214,34 @@ def check_in_vehicle(
             detail="Vị trí đỗ không thuộc khu vực đã chọn",
         )
 
-    if normalize_slot_status(slot.status) != "EMPTY":
+    reservation_now = utc_now_naive()
+    expire_reservations(db, reservation_now)
+    active_reservation = (
+        db.query(Reservation)
+        .filter(
+            Reservation.vehicle_id == vehicle.id,
+            Reservation.status == "RESERVED",
+            Reservation.expire_time > reservation_now,
+        )
+        .order_by(Reservation.reservation_time.desc())
+        .first()
+    )
+    if active_reservation and active_reservation.slot_id != slot.id:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Xe đã có chỗ đặt trước. Vui lòng check-in đúng vị trí "
+                f"{active_reservation.slot.slot_code if active_reservation.slot else ''}"
+            ),
+        )
+
+    slot_status = normalize_slot_status(slot.status)
+    slot_reserved_for_vehicle = (
+        active_reservation is not None
+        and active_reservation.slot_id == slot.id
+        and slot_status == "RESERVED"
+    )
+    if slot_status != "EMPTY" and not slot_reserved_for_vehicle:
         raise HTTPException(status_code=400, detail="Chỗ đỗ này không còn trống")
     if slot.area and str(slot.area.status).strip().upper() != "ACTIVE":
         raise HTTPException(status_code=400, detail="Khu vực đỗ hiện không hoạt động")
@@ -238,6 +288,8 @@ def check_in_vehicle(
     )
 
     slot.status = "OCCUPIED"
+    if active_reservation is not None:
+        active_reservation.status = "IN_PARKING"
     db.add(ticket)
     try:
         db.commit()

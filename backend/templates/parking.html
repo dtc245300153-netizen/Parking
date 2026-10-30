@@ -71,6 +71,25 @@
         background: #b91c1c;
       }
 
+      .change-password-button {
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        background: transparent;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 9px;
+        font-weight: 700;
+      }
+
+      .change-password-button:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .change-password-feedback.success {
+        border-color: #a7f3d0;
+        background: #ecfdf5;
+        color: #047857;
+      }
+
       /* ================= LAYOUT ================= */
 
       .layout {
@@ -104,6 +123,10 @@
         border-radius: 11px;
         font-size: 14px;
         transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+      }
+
+      [hidden] {
+        display: none !important;
       }
 
       .menu-item:hover {
@@ -2458,18 +2481,45 @@
       <div class="user-info">
         👤 <span id="username">Quản trị viên</span>
 
+        <button class="change-password-button" type="button" onclick="openChangePasswordModal()">Đổi mật khẩu</button>
         <button class="logout" onclick="logout()">Đăng xuất</button>
       </div>
     </header>
 
+    <section class="modal" id="changePasswordModal" aria-label="Đổi mật khẩu">
+      <div class="modal-box">
+        <h2 class="modal-title">Đổi mật khẩu</h2>
+        <form id="changePasswordForm">
+          <div class="form-group">
+            <label for="oldPassword">Mật khẩu hiện tại</label>
+            <input class="form-control" id="oldPassword" type="password" autocomplete="current-password" maxlength="128" required>
+          </div>
+          <div class="form-group">
+            <label for="newPassword">Mật khẩu mới</label>
+            <input class="form-control" id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+          </div>
+          <div class="form-group">
+            <label for="confirmPassword">Xác nhận mật khẩu mới</label>
+            <input class="form-control" id="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+          </div>
+          <div class="modal-feedback change-password-feedback" id="changePasswordFeedback" role="status" aria-live="polite" hidden></div>
+          <div class="modal-actions">
+            <button class="btn btn-gray" type="button" onclick="closeChangePasswordModal()">Hủy</button>
+            <button class="btn btn-primary" id="changePasswordSubmit" type="submit">Cập nhật mật khẩu</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <div class="layout">
       <aside class="sidebar">
-        <div class="menu-title">QUẢN LÝ</div>
+        <div class="menu-title" id="menuTitleManagement" hidden>QUẢN LÝ</div>
 
         <button
           class="menu-item active"
           id="menuOverview"
-          onclick="showOverview()">
+          onclick="showOverview()"
+          hidden>
           ◧ Tổng quan
         </button>
 
@@ -2477,11 +2527,12 @@
           class="menu-item"
           id="menuParking"
           onclick="showParking()"
+          hidden
         >
           🅿️ Bãi đỗ xe
         </button>
 
-        <button class="menu-item" id="menuVehicles" onclick="showVehicles()">
+        <button class="menu-item" id="menuVehicles" onclick="showVehicles()" hidden>
           🚗 Phương tiện
         </button>
 
@@ -2489,24 +2540,37 @@
           👥 Nhân viên
         </button>
 
-        <button class="menu-item" id="menuTickets" onclick="showTickets()">
+        <button class="menu-item" id="menuUsers" onclick="showUsers()" hidden>
+          👤 Người dùng
+        </button>
+
+        <button class="menu-item" id="menuTickets" onclick="showTickets()" hidden>
           🎫 Vé xe
         </button>
 
-        <button class="menu-item" id="menuPrices" onclick="showPrices()">
+        <button class="menu-item" id="menuPrices" onclick="showPrices()" hidden>
           💵 Bảng giá
         </button>
 
-        <button class="menu-item" id="menuRevenue" onclick="showRevenue()">
+        <button class="menu-item" id="menuRevenue" onclick="showRevenue()" hidden>
           💰 Doanh thu
         </button>
 
-        <div class="menu-title">PHÂN TÍCH</div>
+        <button class="menu-item" id="menuMyVehicles" onclick="showVehicles('menuMyVehicles')" hidden>
+          🚗 Xe của tôi
+        </button>
+
+        <button class="menu-item" id="menuMyTickets" onclick="showTickets('menuMyTickets')" hidden>
+          🎫 Vé của tôi
+        </button>
+
+        <div class="menu-title" id="menuTitleAnalysis" hidden>PHÂN TÍCH</div>
 
         <button
           class="menu-item"
           id="menuStatistics"
           onclick="showStatistics()"
+          hidden
         >
           📊 Thống kê
         </button>
@@ -2524,7 +2588,7 @@
       <main class="content">
         <h1 class="page-title" id="pageTitle">Tổng quan</h1>
         <p class="subtitle" id="pageSubtitle">Tình hình vận hành bãi đỗ xe</p>
-        <section class="stats">
+        <section class="stats" id="globalStats" hidden>
           <div class="stat-card">
             <div class="stat-card-head">
               <div class="stat-label">Tổng vị trí</div>
@@ -2606,8 +2670,11 @@
       </div>
 
       <div class="ai-quick-actions" aria-label="Câu hỏi nhanh">
+        <button type="button" id="aiHelpQuick" onclick="askAi('Bạn có thể trả lời gì?')">Hỏi AI</button>
+        <button type="button" id="aiParkedVehiclesQuick" onclick="askAi('Xe của tôi đang gửi ở đâu?')">Xe của tôi?</button>
+        <button type="button" id="aiEmployeesQuick" onclick="askAi('Tất cả nhân viên trong chương trình là ai?')">Danh sách NV</button>
         <button type="button" onclick="askAi('Bãi còn bao nhiêu chỗ?')">Chỗ trống?</button>
-        <button type="button" onclick="askAi('Doanh thu hôm nay bao nhiêu?')">Doanh thu hôm nay?</button>
+        <button type="button" id="aiRevenueQuick" onclick="askAi('Doanh thu hôm nay bao nhiêu?')">Doanh thu hôm nay?</button>
         <button type="button" onclick="askAi('Bãi đang sử dụng bao nhiêu phần trăm công suất?')">Công suất?</button>
         <button type="button" onclick="askAi('Báo cáo lưu lượng xe tuần này theo ngày')">Lưu lượng tuần</button>
         <button type="button" onclick="askAi('Khung giờ nào đông nhất tuần này?')">Giờ cao điểm</button>
@@ -2629,6 +2696,7 @@
             let currentUserId = null;
             let currentFullName = "";
             let currentProfilePromise = null;
+            let currentRole = "";
 
             const token = () => localStorage.getItem("access_token");
             function updateStats(total, available, occupied, reserved) {
@@ -2639,6 +2707,9 @@
             }
 
             async function refreshStats() {
+              if (currentRole === "CUSTOMER") {
+                return;
+              }
               try {
                 const data = await api("/api/dashboard/summary");
                 updateStats(
@@ -2922,21 +2993,65 @@
               return currentProfilePromise;
             }
 
-            async function configureAdminMenu() {
-              const employeeMenu = document.getElementById("menuEmployees");
-              const auditMenu = document.getElementById("menuAuditLogs");
+            async function configureRoleMenu() {
+              const profile = await loadCurrentProfile();
+              const rawRole = String(profile.role || "").trim().toUpperCase();
+              currentRole = rawRole === "STAFF" ? "EMPLOYEE" : rawRole;
+              if (!["ADMIN", "EMPLOYEE", "CUSTOMER"].includes(currentRole)) {
+                throw new Error("Vai trò tài khoản không hợp lệ.");
+              }
+
+              const isAdmin = currentRole === "ADMIN";
+              const isStaff = currentRole === "EMPLOYEE";
+              const isCustomer = currentRole === "CUSTOMER";
+              const show = (id, visible) => {
+                document.getElementById(id).hidden = !visible;
+              };
+
+              show("menuTitleManagement", !isCustomer);
+              show("menuTitleAnalysis", isAdmin);
+              show("menuOverview", !isCustomer);
+              show("menuParking", isAdmin || isStaff);
+              show("menuVehicles", isAdmin || isStaff);
+              show("menuEmployees", isAdmin);
+              show("menuUsers", isAdmin);
+              show("menuTickets", isAdmin || isStaff);
+              show("menuPrices", isAdmin);
+              show("menuRevenue", isAdmin);
+              show("menuStatistics", isAdmin);
+              show("menuAuditLogs", isAdmin);
+              show("menuMyVehicles", isCustomer);
+              show("menuMyTickets", isCustomer);
+              show("globalStats", !isCustomer);
+              show("aiLauncher", !isStaff);
+              show("aiPanel", !isStaff);
+              show("aiRevenueQuick", isAdmin);
+              show("aiEmployeesQuick", isAdmin);
+              show("aiParkedVehiclesQuick", isCustomer);
+
+              return profile;
+            }
+
+            async function initializeRoleExperience() {
+              const content = document.getElementById("mainContent");
               try {
-                const profile = await loadCurrentProfile();
-                const isAdmin = String(profile.role || "").toUpperCase() === "ADMIN";
-                employeeMenu.hidden = !isAdmin;
-                auditMenu.hidden = !isAdmin;
-              } catch {
-                employeeMenu.hidden = true;
-                auditMenu.hidden = true;
+                await configureRoleMenu();
+                if (currentRole === "CUSTOMER") {
+                  await showVehicles("menuMyVehicles");
+                } else {
+                  startLiveDashboard();
+                  await showOverview();
+                }
+              } catch (error) {
+                console.error("Không thể khởi tạo giao diện theo vai trò:", error);
+                content.innerHTML = `<div class="panel error-panel"><div class="empty">${escapeHtml(error.message)}</div></div>`;
               }
             }
 
             async function showOverview(backgroundRefresh = false) {
+              if (currentRole === "CUSTOMER") {
+                return;
+              }
               if (!backgroundRefresh) {
                 setMenu("menuOverview");
               } else if (!document.getElementById("menuOverview")?.classList.contains("active")) {
@@ -3079,7 +3194,7 @@
                       </article>
                     </section>
 
-                    <section class="overview-lead-grid" aria-label="Tình trạng và doanh thu">
+                    <section class="overview-lead-grid" aria-label="${hasRevenue ? "Tình trạng và doanh thu" : "Tình trạng bãi xe"}">
                       <div class="overview-occupancy">
                         <div class="overview-card-heading">
                           <div>
@@ -3099,12 +3214,12 @@
                         <button class="overview-text-action" onclick="showParking()">Mở sơ đồ bãi <span>→</span></button>
                       </div>
 
-                      <div class="overview-revenue">
+                      ${hasRevenue ? `<div class="overview-revenue">
                         <div class="overview-card-heading">
                           <div>
                             <span class="overview-label">Doanh thu 7 ngày</span>
                             <strong class="overview-revenue-value">${hasRevenue ? formatMoney(data.revenue_week) : "—"}</strong>
-                          </div>
+                          </div>` : ""}
                           <span class="overview-revenue-icon" aria-hidden="true">₫</span>
                         </div>
                         <div class="overview-revenue-periods">
@@ -3117,11 +3232,11 @@
 
                     <section class="overview-section">
                       <div class="overview-section-heading">
-                        <div><p class="overview-eyebrow">Theo dõi xu hướng</p><h3>Hoạt động và doanh thu</h3></div>
+                        <div><p class="overview-eyebrow">Theo dõi xu hướng</p><h3>${hasRevenue ? "Hoạt động và doanh thu" : "Lưu lượng vận hành"}</h3></div>
                         <span class="overview-source">Nguồn dữ liệu: CSDL</span>
                       </div>
                       <div class="chart-grid">
-                        <div class="chart-card"><h3>Doanh thu theo ngày</h3>${dailyChart}</div>
+                        ${hasRevenue ? `<div class="chart-card"><h3>Doanh thu theo ngày</h3>${dailyChart}</div>` : ""}
                         <div class="chart-card"><h3>Lưu lượng theo giờ</h3>${trafficChart}</div>
                       </div>
                     </section>
@@ -3179,6 +3294,9 @@
             }
 
             async function showParking() {
+              if (currentRole !== "ADMIN" && currentRole !== "EMPLOYEE") {
+                return;
+              }
               setMenu("menuParking");
               refreshStats();
 
@@ -3191,6 +3309,9 @@
             }
 
             async function loadParking() {
+              if (currentRole !== "ADMIN" && currentRole !== "EMPLOYEE") {
+                return;
+              }
               const content = document.getElementById("mainContent");
 
               content.innerHTML = `
@@ -3264,11 +3385,11 @@
                                                 </div>
                                             </div>
 
-                                            <button
+                                            ${currentRole === "ADMIN" ? `<button
                                                 class="btn btn-primary"
                                                 onclick="addArea()">
                                                 ➕ Thêm khu vực
-                                            </button>
+                                            </button>` : ""}
 
                                         </div>
 
@@ -3431,7 +3552,7 @@
 
                                                     <div class="area-actions">
 
-                                                        <button
+                                                        ${currentRole === "ADMIN" ? `<button
                                                             class="btn btn-warning btn-small"
                                                             onclick='editArea(${JSON.stringify(area)})'>
                                                             ✏️ Sửa
@@ -3447,7 +3568,7 @@
                                                             class="btn btn-primary btn-small"
                                                             onclick="addSlot(${area.id})">
                                                             ➕ Vị trí
-                                                        </button>
+                                                        </button>` : ""}
 
                                                     </div>
 
@@ -3464,11 +3585,11 @@
                                                         Chưa có vị trí trong khu vực này.
                                                     </div>
 
-                                                    <button
+                                                    ${currentRole === "ADMIN" ? `<button
                                                         class="btn btn-primary btn-small"
                                                         onclick="addSlot(${area.id})">
                                                         ➕ Thêm vị trí
-                                                    </button>
+                                                    </button>` : ""}
 
                                                 </div>
                                             `;
@@ -3512,7 +3633,7 @@
                                                           ${slotVehicle}
                                                         </div>
 
-                                                        <div class="slot-actions">
+                                                        ${currentRole === "ADMIN" ? `<div class="slot-actions">
 
                                                             <button
                                                               title="Sửa vị trí"
@@ -3535,7 +3656,7 @@
                                                                 🔄
                                                             </button>
 
-                                                        </div>
+                                                        </div>` : ""}
 
                                                     </div>
                                                 `;
@@ -3899,15 +4020,22 @@
                            VEHICLES
                         ===================================================== */
 
-            async function showVehicles() {
-              setMenu("menuVehicles");
-              refreshStats();
+            async function showVehicles(menuId = "menuVehicles") {
+              const isCustomer = currentRole === "CUSTOMER";
+              const isAdmin = currentRole === "ADMIN";
+              const canRegisterVehicles = isAdmin || currentRole === "EMPLOYEE";
+              setMenu(menuId);
+              if (!isCustomer) {
+                refreshStats();
+              }
 
               document.getElementById("pageTitle").textContent =
-                "Quản lý phương tiện";
+                isCustomer ? "Xe của tôi" : "Quản lý phương tiện";
 
               document.getElementById("pageSubtitle").textContent =
-                "Thêm, sửa và xóa phương tiện";
+                isCustomer
+                  ? "Danh sách phương tiện thuộc tài khoản của bạn"
+                  : "Quản lý phương tiện và trạng thái gửi xe";
 
               const content = document.getElementById("mainContent");
 
@@ -3927,14 +4055,14 @@
                                         <div class="panel-header">
 
                                             <div class="panel-title">
-                                                🚗 Danh sách phương tiện
+                                                🚗 ${isCustomer ? "Xe của tôi" : "Danh sách phương tiện"}
                                             </div>
 
-                                            <button
+                                            ${canRegisterVehicles ? `<button
                                                 class="btn btn-primary"
                                                 onclick="addVehicle()">
                                                 ➕ Thêm phương tiện
-                                            </button>
+                                            </button>` : ""}
 
                                         </div>
 
@@ -3959,7 +4087,7 @@
                                                         <th>Trạng thái</th>
                                                         <th>Vị trí</th>
                                                         <th>Thời gian vào</th>
-                                                        <th>Thao tác</th>
+                                                        ${isAdmin ? "<th>Thao tác</th>" : ""}
 
                                                     </tr>
 
@@ -4002,21 +4130,12 @@
                                                                 <td>${escapeHtml(vehicle.slot_code || "-")}</td>
                                                                 <td>${formatDate(vehicle.entry_time)}</td>
 
-                                                                <td>
-
-                                                                    <button
-                                                                        class="btn btn-warning btn-small"
-                                                                        onclick='editVehicle(${JSON.stringify(vehicle)})'>
-                                                                      ✏️ Cập nhật
-                                                                    </button>
-
-                                                                    <button
-                                                                        class="btn btn-danger btn-small"
-                                                                        onclick="deleteVehicle(${vehicle.id})">
-                                                                        🗑️ Xóa
-                                                                    </button>
-
-                                                                </td>
+                                                                ${isAdmin ? `
+                                                                  <td>
+                                                                    <button class="btn btn-warning btn-small" onclick='editVehicle(${JSON.stringify(vehicle)})'>✏️ Cập nhật</button>
+                                                                    <button class="btn btn-danger btn-small" onclick="deleteVehicle(${vehicle.id})">🗑️ Xóa</button>
+                                                                  </td>
+                                                                ` : ""}
 
                                                             </tr>
 
@@ -4026,7 +4145,7 @@
                                                         : `
                                                             <tr>
                                                                 <td
-                                                                    colspan="8"
+                                                                    colspan="${isAdmin ? 8 : 7}"
                                                                     style="text-align:center">
                                                                     Chưa có phương tiện
                                                                 </td>
@@ -4202,7 +4321,134 @@
               }
             }
 
+            async function showUsers() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
+              setMenu("menuUsers");
+              refreshStats();
+              document.getElementById("pageTitle").textContent = "Quản lý người dùng";
+              document.getElementById("pageSubtitle").textContent =
+                "Tài khoản, vai trò và trạng thái truy cập";
+              const content = document.getElementById("mainContent");
+
+              try {
+                const users = await api("/api/users");
+                const rows = users.length
+                  ? users.map((user) => {
+                      const active = String(user.status || "").toUpperCase() === "ACTIVE";
+                      const isCurrentUser = Number(user.id) === currentUserId;
+                      const roleName = {
+                        ADMIN: "Admin",
+                        EMPLOYEE: "Staff",
+                        STAFF: "Staff",
+                        CUSTOMER: "Customer",
+                      }[String(user.role || "").toUpperCase()] || user.role;
+                      return `
+                        <tr class="user-row">
+                          <td>${escapeHtml(user.username)}</td>
+                          <td><strong>${escapeHtml(user.full_name)}</strong></td>
+                          <td>${escapeHtml(user.email || "-")}</td>
+                          <td>${escapeHtml(roleName)}</td>
+                          <td><span class="price-status ${active ? "" : "inactive"}">${active ? "Đang hoạt động" : "Đã khóa"}</span></td>
+                          <td>
+                            <button class="btn btn-warning btn-small" onclick='editUser(${JSON.stringify(user)})'>Cập nhật</button>
+                            ${isCurrentUser
+                              ? '<span class="employee-current-label">Tài khoản hiện tại</span>'
+                              : `<button class="btn ${active ? "btn-gray" : "btn-success"} btn-small" onclick='toggleUserStatus(${JSON.stringify(user)})'>${active ? "Khóa" : "Mở khóa"}</button>`}
+                          </td>
+                        </tr>
+                      `;
+                    }).join("")
+                  : '<tr><td colspan="6" class="overview-empty-cell">Chưa có tài khoản.</td></tr>';
+
+                content.innerHTML = `
+                  <div class="panel">
+                    <div class="panel-header">
+                      <div><div class="panel-title">👤 Người dùng</div><div class="employee-summary">${users.length} tài khoản</div></div>
+                      <button class="btn btn-primary" onclick="addUser()">＋ Tạo tài khoản</button>
+                    </div>
+                    <input id="userSearch" class="form-control" placeholder="Tìm tài khoản, họ tên hoặc email" oninput="filterRows('userSearch', '.user-row')">
+                    <div class="table-wrapper">
+                      <table>
+                        <thead><tr><th>Tài khoản</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                `;
+              } catch (error) {
+                content.innerHTML = `<div class="panel error-panel"><div class="empty">Không tải được danh sách người dùng: ${escapeHtml(error.message)}</div></div>`;
+              }
+            }
+
+            function addUser() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
+              openModal(
+                "Tạo tài khoản",
+                `
+                  <div class="form-group"><label for="userFullName">Họ và tên</label><input id="userFullName" class="form-control" maxlength="100" required></div>
+                  <div class="form-group"><label for="userUsername">Tên đăng nhập</label><input id="userUsername" class="form-control" minlength="3" maxlength="50" required></div>
+                  <div class="form-group"><label for="userPassword">Mật khẩu</label><input id="userPassword" class="form-control" type="password" minlength="8" maxlength="128" required></div>
+                  <div class="form-group"><label for="userEmail">Email</label><input id="userEmail" class="form-control" type="email" maxlength="100"></div>
+                  <div class="form-group"><label for="userPhone">Số điện thoại</label><input id="userPhone" class="form-control" type="tel" maxlength="30"></div>
+                  <div class="form-group"><label for="userRole">Vai trò</label><select id="userRole" class="form-control"><option value="ADMIN">Admin</option><option value="EMPLOYEE">Staff</option><option value="CUSTOMER">Customer</option></select></div>
+                `,
+                "addUser",
+              );
+            }
+
+            function editUser(user) {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
+              selectedId = user.id;
+              const isCurrentUser = Number(user.id) === currentUserId;
+              const role = String(user.role || "").toUpperCase() === "STAFF"
+                ? "EMPLOYEE"
+                : String(user.role || "").toUpperCase();
+              openModal(
+                "Cập nhật tài khoản",
+                `
+                  <div class="form-group"><label for="userFullName">Họ và tên</label><input id="userFullName" class="form-control" maxlength="100" value="${escapeHtml(user.full_name || "")}" required></div>
+                  <div class="form-group"><label for="userEmail">Email</label><input id="userEmail" class="form-control" type="email" maxlength="100" value="${escapeHtml(user.email || "")}"></div>
+                  <div class="form-group"><label for="userPhone">Số điện thoại</label><input id="userPhone" class="form-control" type="tel" maxlength="30" value="${escapeHtml(user.phone || "")}"></div>
+                  ${isCurrentUser ? `<div class="form-group"><label>Vai trò / trạng thái</label><input class="form-control" value="Admin · Đang hoạt động" disabled></div>` : `
+                    <div class="form-group"><label for="userRole">Vai trò</label><select id="userRole" class="form-control"><option value="ADMIN" ${role === "ADMIN" ? "selected" : ""}>Admin</option><option value="EMPLOYEE" ${role === "EMPLOYEE" ? "selected" : ""}>Staff</option><option value="CUSTOMER" ${role === "CUSTOMER" ? "selected" : ""}>Customer</option></select></div>
+                    <div class="form-group"><label for="userStatus">Trạng thái</label><select id="userStatus" class="form-control"><option value="ACTIVE" ${String(user.status).toUpperCase() === "ACTIVE" ? "selected" : ""}>Đang hoạt động</option><option value="INACTIVE" ${String(user.status).toUpperCase() !== "ACTIVE" ? "selected" : ""}>Đã khóa</option></select></div>
+                  `}
+                `,
+                "editUser",
+              );
+            }
+
+            async function toggleUserStatus(user) {
+              if (currentRole !== "ADMIN" || Number(user.id) === currentUserId) {
+                return;
+              }
+              const active = String(user.status || "").toUpperCase() === "ACTIVE";
+              const nextStatus = active ? "INACTIVE" : "ACTIVE";
+              if (!confirm(`${active ? "Khóa" : "Mở khóa"} tài khoản ${user.username}?`)) {
+                return;
+              }
+              try {
+                await api(`/api/users/${user.id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: nextStatus }),
+                });
+                await showUsers();
+              } catch (error) {
+                alert(error.message || "Không cập nhật được trạng thái tài khoản.");
+              }
+            }
+
             async function showEmployees() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
               setMenu("menuEmployees");
               refreshStats();
               document.getElementById("pageTitle").textContent = "Quản lý nhân viên";
@@ -4299,14 +4545,22 @@
                            TICKETS
                         ===================================================== */
 
-            async function showTickets() {
-              setMenu("menuTickets");
-              refreshStats();
+            async function showTickets(menuId = "menuTickets") {
+              const isCustomer = currentRole === "CUSTOMER";
+              const isStaff = currentRole === "EMPLOYEE";
+              const canOperateParking = currentRole === "ADMIN" || currentRole === "EMPLOYEE";
+              setMenu(menuId);
+              if (!isCustomer) {
+                refreshStats();
+              }
 
-              document.getElementById("pageTitle").textContent = "Quản lý vé xe";
+              document.getElementById("pageTitle").textContent =
+                isCustomer ? "Vé của tôi" : "Quản lý vé xe";
 
               document.getElementById("pageSubtitle").textContent =
-                "Xe vào, xe ra và lịch sử vé";
+                isCustomer
+                  ? "Lịch sử các lượt gửi xe của bạn"
+                  : "Xe vào, xe ra và lịch sử vé";
 
               const content = document.getElementById("mainContent");
 
@@ -4314,8 +4568,11 @@
                 const tickets = await api("/api/tickets/");
 
                 const vehicles = await api("/api/vehicles/");
+                const reservations = isCustomer
+                  ? await api("/api/reservations/my")
+                  : [];
 
-                const areas = await api("/api/areas/");
+                const areas = isCustomer ? [] : await api("/api/areas/");
 
                 let slots = [];
 
@@ -4332,16 +4589,55 @@
                                         <div class="panel-header">
 
                                             <div class="panel-title">
-                                                🎫 Vé xe
+                                                🎫 ${isCustomer ? "Lịch sử vé của tôi" : "Vé xe"}
                                             </div>
 
-                                            <button
+                                            ${canOperateParking ? `<button
                                                 class="btn btn-primary"
                                                 onclick="vehicleEntry()">
                                                 🚗 Xe vào
-                                            </button>
+                                            </button>` : ""}
 
                                         </div>
+
+                                        ${isCustomer ? `
+                                          <section class="panel" style="margin:0 0 18px;padding:18px">
+                                            <div class="panel-header">
+                                              <div class="panel-title">⏱️ Đặt chỗ trước</div>
+                                            </div>
+                                            <p style="margin:0 0 12px;color:#64748b">Giữ chỗ tối đa 30 phút. Nếu xe chưa vào bãi đúng hạn, đặt chỗ sẽ tự hết hạn.</p>
+                                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+                                              <select id="reservationVehicle" class="form-control" style="max-width:320px" ${vehicles.length ? "" : "disabled"}>
+                                                ${vehicles.map((vehicle) => `<option value="${vehicle.id}">${escapeHtml(vehicle.license_plate)} - ${escapeHtml(vehicle.vehicle_type || "Xe")}</option>`).join("")}
+                                              </select>
+                                              <button class="btn btn-primary" type="button" onclick="createReservation()" ${vehicles.length ? "" : "disabled"}>Đặt chỗ 30 phút</button>
+                                            </div>
+                                            <div class="table-wrapper">
+                                              <table>
+                                                <thead><tr><th>Xe</th><th>Vị trí</th><th>Đặt lúc</th><th>Hết hạn</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                                                <tbody>
+                                                  ${reservations.length ? reservations.map((reservation) => {
+                                                    const status = String(reservation.status || "").toUpperCase();
+                                                    const statusLabel = {
+                                                      RESERVED: "Đang giữ chỗ",
+                                                      IN_PARKING: "Đã vào bãi",
+                                                      EXPIRED: "Hết hạn",
+                                                      CANCELLED: "Đã hủy",
+                                                    }[status] || status;
+                                                    return `<tr>
+                                                      <td>${escapeHtml(reservation.license_plate || "-")}</td>
+                                                      <td>${escapeHtml(reservation.slot_code || "-")}</td>
+                                                      <td>${formatDate(reservation.reservation_time)}</td>
+                                                      <td>${formatDate(reservation.expire_time)}</td>
+                                                      <td><span class="badge ${status === "RESERVED" ? "badge-yellow" : status === "IN_PARKING" ? "badge-green" : "badge-gray"}">${escapeHtml(statusLabel)}</span></td>
+                                                      <td>${status === "RESERVED" ? `<button class="btn btn-gray btn-small" type="button" onclick="cancelReservation(${Number(reservation.id)})">Hủy</button>` : "-"}</td>
+                                                    </tr>`;
+                                                  }).join("") : `<tr><td colspan="6" style="text-align:center">Bạn chưa có đặt chỗ trước</td></tr>`}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </section>
+                                        ` : ""}
 
                                           <input
                                             id="ticketSearch"
@@ -4362,9 +4658,9 @@
                                                         <th>Vị trí</th>
                                                         <th>Vào</th>
                                                         <th>Ra</th>
-                                                        <th>Phí</th>
+                                                        ${isStaff ? "" : "<th>Phí</th>"}
                                                         <th>Trạng thái</th>
-                                                        <th>Thao tác</th>
+                                                        ${isCustomer ? "" : "<th>Thao tác</th>"}
 
                                                     </tr>
 
@@ -4407,7 +4703,8 @@
                                                                     <td>
                                                                         ${escapeHtml(
                                                                           slot?.slot_code ||
-                                                                            "-",
+                                                                              ticket.slot ||
+                                                                              "-",
                                                                         )}
                                                                     </td>
 
@@ -4419,9 +4716,7 @@
                                                                         ${formatDate(ticket.exit_time)}
                                                                     </td>
 
-                                                                    <td>
-                                                                        ${formatMoney(ticket.fee)}
-                                                                    </td>
+                                                                    ${isStaff ? "" : `<td>${formatMoney(ticket.fee)}</td>`}
 
                                                                     <td>
                                                                         ${
@@ -4432,22 +4727,13 @@
                                                                         }
                                                                     </td>
 
-                                                                    <td>
-
-                                                                        ${
-                                                                          String(ticket.status || "").toUpperCase() ===
-                                                                          "PARKING"
-                                                                            ? `
-                                                                                <button
-                                                                                    class="btn btn-success btn-small"
-                                                                                    onclick="vehicleExit(${ticket.id})">
-                                                                                    🚗 Xe ra
-                                                                                </button>
-                                                                            `
-                                                                            : "-"
-                                                                        }
-
-                                                                    </td>
+                                                                    ${isCustomer ? "" : `
+                                                                      <td>
+                                                                        ${canOperateParking && String(ticket.status || "").toUpperCase() === "PARKING"
+                                                                          ? `<button class="btn btn-success btn-small" onclick="vehicleExit(${ticket.id})">🚗 Xe ra</button>`
+                                                                          : "-"}
+                                                                      </td>
+                                                                    `}
 
                                                                 </tr>
                                                             `;
@@ -4456,7 +4742,7 @@
                                                         : `
                                                             <tr>
                                                                 <td
-                                                                    colspan="8"
+                                                                    colspan="${6 + (isStaff ? 0 : 1) + (isCustomer ? 0 : 1)}"
                                                                     style="text-align:center">
                                                                     Chưa có vé
                                                                 </td>
@@ -4483,10 +4769,41 @@
               }
             }
 
+            async function createReservation() {
+              const vehicleId = Number(document.getElementById("reservationVehicle")?.value);
+              if (!vehicleId) {
+                alert("Vui lòng chọn xe để đặt chỗ.");
+                return;
+              }
+              try {
+                const reservation = await api("/api/reservations", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ vehicle_id: vehicleId }),
+                });
+                alert(`Đã giữ vị trí ${reservation.slot_code} đến ${formatDate(reservation.expire_time)}.`);
+                await showTickets("menuMyTickets");
+              } catch (error) {
+                alert(`Không thể đặt chỗ: ${error.message}`);
+              }
+            }
+
+            async function cancelReservation(reservationId) {
+              try {
+                await api(`/api/reservations/${reservationId}/cancel`, {
+                  method: "POST",
+                });
+                await showTickets("menuMyTickets");
+              } catch (error) {
+                alert(`Không thể hủy đặt chỗ: ${error.message}`);
+              }
+            }
+
             async function vehicleEntry() {
               try {
                 const vehiclesData = await api("/api/vehicles/");
                 const areasData = await api("/api/areas/");
+                const activeReservations = await api("/api/reservations/active");
 
                 const vehicles = (Array.isArray(vehiclesData) ? vehiclesData : [])
                   .filter((vehicle) => vehicle.status !== "parking");
@@ -4503,6 +4820,14 @@
                       slots.push(
                         ...areaSlots.filter((slot) => slot.status === "available"),
                       );
+                      for (const reservation of activeReservations) {
+                        const reservedSlot = areaSlots.find(
+                          (slot) => Number(slot.id) === Number(reservation.slot_id),
+                        );
+                        if (reservedSlot && !slots.some((slot) => slot.id === reservedSlot.id)) {
+                          slots.push(reservedSlot);
+                        }
+                      }
                     }
                   } catch (error) {
                     console.error(error);
@@ -4535,7 +4860,8 @@
 
                                         <select
                                             id="entryVehicle"
-                                            class="form-control">
+                                            class="form-control"
+                                            onchange="updateEntrySlotOptions()">
 
                                             ${vehicles
                                               .map(
@@ -4564,11 +4890,18 @@
 
                                             ${slots
                                               .map(
-                                                (slot) => `
-                                                    <option value="${slot.id}">
-                                                        ${escapeHtml(slot.slot_code)}
+                                                (slot) => {
+                                                  const reservation = activeReservations.find(
+                                                    (item) => Number(item.slot_id) === Number(slot.id),
+                                                  );
+                                                  return `
+                                                    <option
+                                                      value="${slot.id}"
+                                                      data-reserved-vehicle-id="${reservation ? Number(reservation.vehicle_id) : ""}">
+                                                      ${escapeHtml(slot.slot_code)}${reservation ? " (đã đặt trước)" : ""}
                                                     </option>
-                                                `,
+                                                  `;
+                                                },
                                               )
                                               .join("")}
 
@@ -4580,8 +4913,40 @@
 
                   "vehicleEntry",
                 );
+                updateEntrySlotOptions();
               } catch (error) {
                 alert("❌ Không thể mở chức năng xe vào:\n" + error.message);
+              }
+            }
+
+            function updateEntrySlotOptions() {
+              const vehicleSelect = document.getElementById("entryVehicle");
+              const slotSelect = document.getElementById("entrySlot");
+              if (!vehicleSelect || !slotSelect) {
+                return;
+              }
+              const vehicleId = vehicleSelect.value;
+              const options = Array.from(slotSelect.options);
+              for (const option of options) {
+                const reservedVehicleId = option.dataset.reservedVehicleId;
+                const belongsToAnotherReservation =
+                  reservedVehicleId && reservedVehicleId !== vehicleId;
+                option.hidden = Boolean(belongsToAnotherReservation);
+                option.disabled = Boolean(belongsToAnotherReservation);
+              }
+              const reservedOption = options.find(
+                (option) => option.dataset.reservedVehicleId === vehicleId,
+              );
+              if (reservedOption) {
+                slotSelect.value = reservedOption.value;
+              } else if (
+                slotSelect.selectedOptions[0]?.disabled ||
+                slotSelect.selectedOptions[0]?.hidden
+              ) {
+                const availableOption = options.find(
+                  (option) => !option.disabled && !option.hidden,
+                );
+                slotSelect.value = availableOption?.value || "";
               }
             }
 
@@ -4621,6 +4986,9 @@
                         ===================================================== */
 
             async function showPrices() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
               setMenu("menuPrices");
               refreshStats();
 
@@ -4938,6 +5306,9 @@
                         ===================================================== */
 
             async function showRevenue() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
               setMenu("menuRevenue");
               refreshStats();
 
@@ -4968,6 +5339,10 @@
                                             <div class="panel-title">
                                                 💰 Doanh thu
                                             </div>
+
+                                            <button class="btn btn-success" type="button" onclick="exportRevenueExcel()">
+                                                📥 Xuất Excel
+                                            </button>
 
                                         </div>
 
@@ -5058,6 +5433,51 @@
               }
             }
 
+            async function exportRevenueExcel() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
+
+              try {
+                const response = await fetch("/api/reports/revenue.xlsx", {
+                  headers: {
+                    Authorization: "Bearer " + token(),
+                  },
+                });
+                if (!response.ok) {
+                  if (response.status === 401) {
+                    localStorage.removeItem("access_token");
+                    localStorage.removeItem("username");
+                    window.location.href = "/login";
+                    throw new Error("Phiên đăng nhập đã hết hạn");
+                  }
+                  const responseText = await response.text();
+                  let detail = responseText;
+                  try {
+                    const errorBody = JSON.parse(responseText);
+                    detail = errorBody.detail || responseText;
+                  } catch {
+                    // Keep the response text when the server does not return JSON.
+                  }
+                  throw new Error(detail || `HTTP ${response.status}`);
+                }
+
+                const contentDisposition = response.headers.get("Content-Disposition") || "";
+                const filename = contentDisposition.match(/filename="?([^";]+)"?/i)?.[1]
+                  || "bao-cao-doanh-thu.xlsx";
+                const fileUrl = URL.createObjectURL(await response.blob());
+                const downloadLink = document.createElement("a");
+                downloadLink.href = fileUrl;
+                downloadLink.download = filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                downloadLink.remove();
+                URL.revokeObjectURL(fileUrl);
+              } catch (error) {
+                alert(`Không thể xuất báo cáo Excel: ${error.message}`);
+              }
+            }
+
             function buildHourlyRevenueChart(tickets) {
               const summary = Array.from({ length: 24 }, (_, hour) => {
                 const total = (Array.isArray(tickets) ? tickets : []).reduce((sum, ticket) => {
@@ -5085,6 +5505,9 @@
             }
 
             async function showAuditLogs() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
               setMenu("menuAuditLogs");
               refreshStats();
               document.getElementById("pageTitle").textContent = "Nhật ký hoạt động";
@@ -5130,6 +5553,9 @@
                         ===================================================== */
 
             async function showStatistics() {
+              if (currentRole !== "ADMIN") {
+                return;
+              }
               setMenu("menuStatistics");
               refreshStats();
 
@@ -5539,6 +5965,68 @@
                 return;
               }
 
+              if (modalMode === "addUser") {
+                const fullName = document.getElementById("userFullName").value.trim();
+                const username = document.getElementById("userUsername").value.trim();
+                const password = document.getElementById("userPassword").value;
+                const email = document.getElementById("userEmail").value.trim();
+                const phone = document.getElementById("userPhone").value.trim();
+                const role = document.getElementById("userRole").value;
+                if (!fullName || username.length < 3 || password.length < 8) {
+                  showModalFeedback("Nhập họ tên, tài khoản tối thiểu 3 ký tự và mật khẩu tối thiểu 8 ký tự.");
+                  return;
+                }
+
+                await api("/api/users", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    username,
+                    password,
+                    full_name: fullName,
+                    email: email || null,
+                    phone: phone || null,
+                    role,
+                    status: "ACTIVE",
+                  }),
+                });
+                closeModal();
+                await showUsers();
+                alert("Đã tạo tài khoản.");
+                return;
+              }
+
+              if (modalMode === "editUser") {
+                const fullName = document.getElementById("userFullName").value.trim();
+                const email = document.getElementById("userEmail").value.trim();
+                const phone = document.getElementById("userPhone").value.trim();
+                if (!fullName) {
+                  showModalFeedback("Họ tên không được để trống.");
+                  return;
+                }
+                const update = {
+                  full_name: fullName,
+                  email: email || null,
+                  phone: phone || null,
+                };
+                const role = document.getElementById("userRole");
+                const status = document.getElementById("userStatus");
+                if (role) {
+                  update.role = role.value;
+                }
+                if (status) {
+                  update.status = status.value;
+                }
+                await api(`/api/users/${selectedId}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(update),
+                });
+                closeModal();
+                await showUsers();
+                return;
+              }
+
               if (modalMode === "editEmployee") {
                 const position = document.getElementById("employeePosition").value.trim();
                 if (!position) {
@@ -5790,6 +6278,49 @@
                 window.location.href = "/login";
               }
 
+              function openChangePasswordModal() {
+                document.getElementById("changePasswordForm").reset();
+                const feedback = document.getElementById("changePasswordFeedback");
+                feedback.hidden = true;
+                feedback.classList.remove("success");
+                document.getElementById("changePasswordModal").classList.add("show");
+                document.getElementById("oldPassword").focus();
+              }
+
+              function closeChangePasswordModal() {
+                document.getElementById("changePasswordModal").classList.remove("show");
+              }
+
+              async function submitChangePassword(event) {
+                event.preventDefault();
+                const submitButton = document.getElementById("changePasswordSubmit");
+                const feedback = document.getElementById("changePasswordFeedback");
+                feedback.hidden = true;
+                feedback.classList.remove("success");
+                submitButton.disabled = true;
+
+                try {
+                  const result = await api("/api/auth/change-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      old_password: document.getElementById("oldPassword").value,
+                      new_password: document.getElementById("newPassword").value,
+                      confirm_password: document.getElementById("confirmPassword").value,
+                    }),
+                  });
+                  feedback.textContent = result.message;
+                  feedback.classList.add("success");
+                  feedback.hidden = false;
+                  document.getElementById("changePasswordForm").reset();
+                } catch (error) {
+                  feedback.textContent = error.message;
+                  feedback.hidden = false;
+                } finally {
+                  submitButton.disabled = false;
+                }
+              }
+
               /* =====================================================
                            USER
                         ===================================================== */
@@ -5819,6 +6350,18 @@
                     askAi();
                   });
 
+                document
+                  .getElementById("changePasswordForm")
+                  .addEventListener("submit", submitChangePassword);
+
+                document
+                  .getElementById("changePasswordModal")
+                  .addEventListener("click", function (event) {
+                    if (event.target === this) {
+                      closeChangePasswordModal();
+                    }
+                  });
+
               /* =====================================================
                            START
                         ===================================================== */
@@ -5826,9 +6369,7 @@
               if (!token()) {
                 window.location.href = "/login";
               } else {
-                configureAdminMenu();
-                startLiveDashboard();
-                showOverview();
+                initializeRoleExperience();
               }
     </script>
   </body>

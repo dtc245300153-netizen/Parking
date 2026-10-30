@@ -1,14 +1,14 @@
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Customer, Employee, User
 from ..schemas.auth import UserResponse
-from ..security import hash_password, require_admin, require_employee_or_admin
+from ..security import canonical_role, hash_password, require_admin
 
 
 router = APIRouter(
@@ -35,10 +35,21 @@ class UserUpdateRequest(BaseModel):
     status: str | None = None
 
 
+class UserAdminResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    full_name: str
+    email: str | None = None
+    phone: str | None = None
+    role: str
+    status: str
+
 def normalize_role(role: str | None) -> str:
     if role is None:
         return "EMPLOYEE"
-    normalized = role.strip().upper()
+    normalized = canonical_role(role)
     if normalized in {"ADMIN", "EMPLOYEE", "CUSTOMER"}:
         return normalized
     raise HTTPException(
@@ -47,7 +58,7 @@ def normalize_role(role: str | None) -> str:
     )
 
 
-@router.get("")
+@router.get("", response_model=list[UserAdminResponse])
 def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
